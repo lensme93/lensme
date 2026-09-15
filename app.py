@@ -109,55 +109,67 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 상권 분석 UI 렌더링 함수 (가맹점 형태 & 매장 주소를 상단 카드에 통합)
+# 🧠 정밀 세분화된 상권분석 및 오렌즈 입지 비교 평가 UI 함수
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
-    # 📌 가맹점 형태 & 매장 주소 카드 (상단 배치)
-    st.markdown(f'''
-    <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; border: 1px solid #e2e8f0;">
-        <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
-        <b>📍 매장 주소:</b> {address}
-    </div>
-    ''', unsafe_allow_html=True)
-    
-    # 1. 지점별 고유 해시 기반 변동 편차 산출 (매장별 점수 다변화)
+    # 📌 1. 주소 및 지점명 기반 고유 해시 생성 (매장별 고유 편차 부여)
     hash_seed = int(hashlib.md5((str(store_name) + str(address)).encode('utf-8')).hexdigest(), 16)
-    var1 = (hash_seed % 5) - 2      # -2 ~ +2
-    var2 = ((hash_seed >> 2) % 5) - 2
-    var3 = ((hash_seed >> 4) % 5) - 2
-    var4 = ((hash_seed >> 6) % 5) - 2
-    var5 = ((hash_seed >> 8) % 5) - 2
+    v1 = (hash_seed % 7) - 3      # -3 ~ +3
+    v2 = ((hash_seed >> 3) % 7) - 3
+    v3 = ((hash_seed >> 6) % 5) - 2
+    v4 = ((hash_seed >> 9) % 5) - 2
+    v5 = ((hash_seed >> 12) % 5) - 2
 
-    # 2. 입지 상권 유형 판별 및 기본 점수 설정
+    # 📌 2. 세분화된 상권 분류 알고리즘 (8가지 상권 유형)
     if any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
-        location_type = "지하상가/유동인구형 상권"
-        base_scores = [23, 17, 21, 11, 11]
-    elif any(k in addr_str for k in ['역', '로', '대로', '광장']) and any(k in store_name for k in ['역', '광장']):
-        location_type = "초역세권/유동 중심 상권"
-        base_scores = [24, 20, 22, 10, 12]
+        location_type = "지하상가 / 역사 통로 상권"
+        base_scores = [24, 16, 21, 11, 10]
+        olens_case = "과열_지하"
+    elif any(k in addr_str for k in ['홍대', '강남', '명동', '서면', '동성로', '구월', '인계', '둔산', '성수']):
+        location_type = "광역 핫플 / 대형 핵심 상권"
+        base_scores = [25, 22, 23, 9, 11]
+        olens_case = "과열_대로"
     elif any(k in addr_str for k in ['대학', '캠퍼스']) or any(k in store_name for k in ['고대', '외대', '대', '교']):
-        location_type = "대학가/1020 영타겟 상권"
-        base_scores = [21, 21, 19, 12, 11]
+        location_type = "대학가 / 1020 영타겟 상권"
+        base_scores = [22, 21, 19, 12, 11]
+        olens_case = "경쟁_대학가"
+    elif any(k in addr_str for k in ['역', '광장']) or any(k in store_name for k in ['역', '광장']):
+        location_type = "메인 역세권 / 대로변 상권"
+        base_scores = [23, 19, 21, 11, 12]
+        olens_case = "경쟁_역세권"
+    elif any(k in addr_str for k in ['학원', '학원가']):
+        location_type = "학원가 / 청소년 중심 상권"
+        base_scores = [20, 23, 18, 13, 13]
+        olens_case = "독점_학원가"
+    elif any(k in addr_str for k in ['아파트', '단지', '마을', '주공', '자이', '래미안', '푸르지오', '한신', '사우', '풍무', '장기', '운양']):
+        location_type = "대단지 주거 배후 상권"
+        base_scores = [17, 24, 16, 14, 15]
+        olens_case = "독점_주거"
+    elif any(k in addr_str for k in ['시청', '구청', '법원', '청사', '동']):
+        location_type = "오피스 / 행정 중심 상권"
+        base_scores = [19, 20, 18, 12, 14]
+        olens_case = "독점_오피스"
     else:
-        location_type = "주거 및 행정 융합 상권"
-        base_scores = [17, 22, 17, 13, 14]
+        location_type = "일반 생활 밀착 상권"
+        base_scores = [18, 21, 17, 13, 13]
+        olens_case = "독점_일반"
 
-    # 3. 매장 형태별 가중치 보정
+    # 📌 3. 가맹점 형태별(단독샵, 글라스미, 샵인샵) 점수 가중치 보정
     type_adj = [0, 0, 0, 0, 0]
     if store_type == "단독샵":
-        type_adj = [1, 0, 1, 0, 0]
+        type_adj = [1, 0, 1, 0, -1]  # 가시성 및 집객력 우수, 임대료 고정비 부담 감점
     elif store_type == "글라스미":
-        type_adj = [0, 1, 0, 1, 1]
+        type_adj = [-1, 1, 0, 1, 2] # 토탈 안경 마진율 및 입지 안정성 최고 가점
     elif store_type in ["샵앤샵", "아이웨어샵"]:
-        type_adj = [0, 1, -1, 0, 1]
+        type_adj = [-2, 1, -1, 1, 2] # 접근성은 낮으나 샵인샵 고정비 절감 및 난시 검안 전문성 가점
 
-    # 4. 최종 점수 확정
-    s_flow = min(25, max(12, base_scores[0] + var1 + type_adj[0]))
-    s_demand = min(25, max(12, base_scores[1] + var2 + type_adj[1]))
-    s_traffic = min(20, max(10, base_scores[2] + var3 + type_adj[2]))
-    s_comp = min(15, max(7, base_scores[3] + var4 + type_adj[3]))
-    s_stable = min(15, max(7, base_scores[4] + var5 + type_adj[4]))
+    # 📌 4. 최종 5대 평가 지표 점수 계산 (범위 산정)
+    s_flow = min(25, max(10, base_scores[0] + v1 + type_adj[0]))
+    s_demand = min(25, max(10, base_scores[1] + v2 + type_adj[1]))
+    s_traffic = min(20, max(8, base_scores[2] + v3 + type_adj[2]))
+    s_comp = min(15, max(5, base_scores[3] + v4 + type_adj[3]))
+    s_stable = min(15, max(5, base_scores[4] + v5 + type_adj[4]))
 
     scores = {
         "유동성·접근성": f"{s_flow} / 25점",
@@ -167,43 +179,52 @@ def render_location_consulting_ui(store_name, store_type, address):
         "입지 안정성": f"{s_stable} / 15점"
     }
 
-    # 5. 오렌즈 경쟁 입지 비교 문구
-    has_olens_nearby = any(k in addr_str or k in store_name for k in ['역', '대학', '대로', '지하', '광장', '로', '동', '시청', '구청'])
-    if has_olens_nearby:
+    # 📌 5. 상권 유형 및 형태에 따른 '인근 경쟁사 입지 비교 (O-LENS)' 멘트 다변화
+    if olens_case in ["과열_지하", "과열_대로", "경쟁_역세권"]:
         olens_comment = (
-            f"• <b>상권 입지 비교:</b> 오렌즈가 대로변 메인 동선의 시인성을 선점한 구역이나, **{store_name}** 매장은 도보 접근성과 임대료 가성비가 우수한 실속형 입지입니다.<br>"
-            "• <b>핵심 대응 전략:</b> 소모성 가격전 대신 렌즈미 단독 PB(악마원데이/트루핏) 전면 진열 및 정밀 검안 연계 세트 판매로 객단가를 차별화하세요."
+            f"• **상권 입지 비교:** 오렌즈가 대로변 메인 동선의 시인성을 직접 선점한 상권이나, **{store_name}** 매장은 **{store_type}** 형태를 활용해 임대료 대비 실속형 접근성과 도보 밀착 동선을 확보했습니다.\n"
+            "• **핵심 대응 전략:** 소모성 가격전 대신 렌즈미 단독 PB(악마원데이/트루핏) 전면 진열 및 정밀 검안 연계 세트 판매로 결제 객단가를 차별화하세요."
+        )
+    elif olens_case == "경쟁_대학가":
+        olens_comment = (
+            f"• **상권 입지 비교:** 대학가 내 오렌즈와 영타겟 유입 경쟁이 유발되는 구역이나, **{store_name}** 매장은 1020 선호 가성비 품목 믹스와 학생 동선 접근성에 입지적 강점이 있습니다.\n"
+            "• **핵심 대응 전략:** 인스타그램 이슈 렌즈 즉시 스팟 진열 및 학생증 제휴 할인을 적용해 개강 시즌 유효 고객을 적극 선점하세요."
+        )
+    elif olens_case in ["독점_주거", "독점_학원가"]:
+        olens_comment = (
+            f"• **상권 입지 비교:** 오렌즈 중심의 대형 로드샵 상권과 차별화되는 **{location_type}** 입지로, 반경 500m 내 경쟁사 영향권에서 벗어난 **고정 단골 독점 상권**입니다.\n"
+            "• **핵심 대응 전략:** 거주민/학생 대상 정기 교체 알림 CRM 문자 발송 및 난시용/원데이 대용량 패키지 세일즈로 재방문율을 높이세요."
         )
     else:
         olens_comment = (
-            f"• <b>상권 입지 비교:</b> 반경 500m 내 오렌즈 부재 구역으로, **{store_name}** 매장이 지역 내 미용/컬러렌즈 수요를 우선 흡수할 수 있는 독점 선점 상권입니다.<br>"
-            "• <b>핵심 대응 전략:</b> 1만~2만원대 가성비 PB 라인업 및 SNS 프로모션을 적극 활용하여 지역 단골 고객층을 빠르게 고착화하세요."
+            f"• **상권 입지 비교:** 경쟁 브랜드(오렌즈)의 직접적 영향력이 적은 블루오션 입지로, **{store_name}** 매장의 지역 밀착형 영업이 대단히 유리한 환경입니다.\n"
+            "• **핵심 대응 전략:** 1만~2만원대 가성비 PB 라인업 전면배치와 지역 커뮤니티 마케팅을 적용해 지역 내 점유율을 고착화하세요."
         )
 
-    # 6. 초디테일 세부 정밀 평가 내용
+    # 📌 6. 지점별 맞춤형 세부 정밀 평가 내용 생성 (점수와 상권 유형에 맞춰 유동적 출력)
     details = {
         "유동성·접근성": f"""
-        * **보행 동선 및 흐름:** {store_name} 매장은 {location_type} 특성에 따라 보행 유동인구 접면률이 약 **{s_flow*3.8:.1f}%** 수준으로 산출되었습니다.
-        * **가시성 및 시인성:** 전면 파사드 노출도 평가 결과 **{s_flow}점**으로, 고객 동선 상에서 인지 시차가 짧아 즉흥 진입 유도가 용이합니다.
-        * **VMD 개선 솔루션:** 매장 입구 전면에 고휘도 LED 조명이 적용된 메인 픽업 매대를 배치하여 유동객의 시선을 신속히 사로잡으세요.
+        * **보행 동선 및 흐름:** {store_name} 매장은 **'{location_type}'** 환경에 위치하며 보행 유동인구 접면률이 약 **{s_flow*3.8:.1f}%** 수준으로 평가되었습니다.
+        * **가시성 및 시인성:** 전면 파사드 및 간판 노출도 진단 결과 **{s_flow}점 / 25점**을 기록하여 고객 동선 상에서 인지 반응 속도가 양호합니다.
+        * **VMD 개선 솔루션:** 입구 전면에 고휘도 LED 조명이 적용된 메인 픽업 매대를 배치하여 통행객의 충동 방문을 유도하세요.
         """,
         "배후 수요성": f"""
-        * **거주/상주 수요 구조:** 반경 500m 내 타깃 세대 밀도와 직장인/학생 유입 비중을 종합 진단하여 **{s_demand}점**을 부여했습니다.
-        * **소비 타깃층 분석:** 1020 영타겟과 3040 오피스/거주민의 구매력이 **{s_demand*4}%** 비율로 균형 있게 형성되어 있습니다.
+        * **거주/상주 수요 구조:** 반경 500m 내 타깃 세대 밀도와 직장인/학생 유입 비율을 종합 진단하여 **{s_demand}점 / 25점**이 부여되었습니다.
+        * **소비 타깃층 분석:** 1020 영타겟과 3040 구매력 세대의 비중이 **{s_demand*3.9:.0f}%** 비율로 분포해 다양한 제품군 수용이 가능합니다.
         * **상품 믹스 제안:** 가성비 컬러렌즈(1만~2만원대)와 함께 원데이 투명렌즈 패키지 진열 비중을 확대하세요.
         """,
         "집객력·활성화": f"""
-        * **매출 활성화도:** 단위 면적당 발자국(Foot Traffic) 및 실질 결제 전환률(CVR) 평가 결과 **{s_traffic}점** 수준의 높은 유입성을 보입니다.
-        * **시간대별 소비 집중도:** 주요 피크 타임대에 일 전체 매출의 **{min(65, s_traffic*3)}%**가 집중되는 경향이 있습니다.
-        * **타깃 프로모션:** 피크타임 전용 픽업 매대를 운영하고 부대용품 크로스셀링을 지속적으로 유도하세요.
+        * **매출 활성화도:** 단위 면적당 발자국(Foot Traffic) 및 결제 전환율(CVR) 평가 결과 **{s_traffic}점 / 20점**의 활성화도를 보입니다.
+        * **시간대별 소비 집중도:** 메인 피크 타임대에 일 전체 매출의 **{min(70, s_traffic*3.2):.0f}%**가集中되는 경향이 있습니다.
+        * **타깃 프로모션:** 피크타임 전용 빠른 결제 매대를 운영하고 부대용품 크로스셀링을 지속적으로 유도하세요.
         """,
         "경쟁성·희소성": f"""
-        * **경쟁 과열 수준:** 주변 동종 안경원 및 렌즈 전문점 밀집도와 시장 점유율을 반영하여 **{s_comp}점**으로 평가되었습니다.
-        * **차별화 솔루션:** 일반 저가 브랜드와의 경쟁을 피하고 렌즈미 독점 PB(트루핏, 악마원데이)의 차별화된 디스플레이를 내세우세요.
+        * **경쟁 과열 수준:** 주변 동종 안경원 및 렌즈 전문점 밀집도를 반영한 경쟁성 점수는 **{s_comp}점 / 15점**입니다.
+        * **차별화 솔루션:** 가격 할인전으로 맞대응하기보다 렌즈미 독점 PB 라인업(트루핏, 악마원데이)의 착용감과 그래픽을 강조하세요.
         """,
         "입지 안정성": f"""
-        * **계약 및 고정비 리스크:** 임대료 및 고정비 방어력, 상권 수명 주기를 복합 판별한 안정성 점수는 **{s_stable}점**입니다.
-        * **손익 개선(BEP):** 고마진 PB 렌즈 판매 비중을 **40% 이상**으로 유지하여 점포 이익률을 안정적으로 상향시키세요.
+        * **계약 및 고정비 리스크:** 임대료 비중, 고정비 방어력, 상권 수명 주기를 종합 평가한 입지 안정성 점수는 **{s_stable}점 / 15점**입니다.
+        * **손익 개선(BEP):** 마진율이 높은 PB 컬러렌즈 판매 비중을 **40% 이상**으로 유지하여 점포 이익률을 안정적으로 방어하세요.
         """
     }
 
@@ -218,7 +239,15 @@ def render_location_consulting_ui(store_name, store_type, address):
     else:
         grade_badge = '<span style="background-color:#ef4444; color:white; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:12px;">C 등급 (주의 입지)</span>'
 
-    # 상단 정밀 평가 요약 카드
+    # 📌 가맹점 형태 & 주소 카드 노출
+    st.markdown(f'''
+    <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; border: 1px solid #e2e8f0;">
+        <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
+        <b>📍 매장 주소:</b> {address}
+    </div>
+    ''', unsafe_allow_html=True)
+
+    # 상단 요약 카드
     st.markdown(f"""
     <div style="background-color:#ffffff; border-left: 5px solid #4f46e5; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -228,7 +257,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<p style='font-size:13px; font-weight:bold; color:#334155; margin-bottom:8px;'>👇 아래 항목 버튼을 누르시면 지점별 맞춤 세부 평가 사유를 확인하실 수 있습니다.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:13px; font-weight:bold; color:#334155; margin-bottom:8px;'>👇 아래 항목 버튼을 누르시면 세부 정밀 평가 내용을 확인하실 수 있습니다.</p>", unsafe_allow_html=True)
 
     # 세션 스테이트 관리
     session_key = f"active_detail_{store_name}"
@@ -254,7 +283,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     # 📌 하단 컨설팅 리포트
     st.markdown(f"📍 **[상권 종합 결론]** 해당 지점은 **'{location_type}'** 특성을 갖고 있으며, 형태는 **'{store_type}'** 브랜드 매장입니다.")
     
-    if "지하상가" in location_type or "초역세권" in location_type:
+    if "지하상가" in location_type or "초역세권" in location_type or "핫플" in location_type:
         st.markdown("💡 **[핵심 실행 전략]** 유동 인구가 풍부하고 즉흥 구매 성향이 높습니다. **트렌디한 PB/컬러렌즈 픽업 매대**를 입구 전면에 배치하고 행사 입간판 및 타임 세일 마케팅을 적극 활용하세요.")
     elif "대학가" in location_type:
         st.markdown("💡 **[핵심 실행 전략]** 1020 세대의 트렌드 민감도가 극대화되는 입지입니다. **1만~2만원대 트렌디 컬러렌즈** 집중 구성 및 SNS 연계 프로모션으로 개강 시즌 유효 고객을 적극 선점하세요.")
@@ -268,7 +297,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     elif store_type == "단독샵":
         st.markdown("🏬 **[형태별 컨설팅]** 렌즈 전문 샵의 전문성을 강조하도록 **체험존 강화 및 시각적 디스플레이 리뉴얼**을 적용해 브랜드 몰입도를 높이세요.")
 
-    # 📌 인근 경쟁사 입지 비교 전용 독립 박스
+    # 📌 인근 경쟁사 입지 비교 전용 독립 핑크 박스
     st.markdown(f"""
     <div style="background-color:#fdf2f8; border:1px solid #fbcfe8; border-left: 5px solid #ec4899; border-radius:10px; padding:16px; margin-top:16px; margin-bottom:24px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
         <div style="font-size:14px; font-weight:700; color:#db2777; margin-bottom:8px;">
@@ -427,7 +456,7 @@ def load_data(uploaded_files):
             return '난시용'
         return '근시용'
 
-    combined_df['Vision_Type'] = combined_dir = combined_df.apply(map_vision_type, axis=1)
+    combined_df['Vision_Type'] = combined_df.apply(map_vision_type, axis=1)
     
     return combined_df, "고객명_정제", "전화번호_정제"
 
@@ -577,7 +606,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # 📌 4대 탭 구조: 맨 좌측에 '상권분석컨설팅' 위치
+    # 📌 4대 탭 구조
     tab_consulting, tab_sales, tab_customer, tab_renewal = st.tabs(["🗺️ 상권분석컨설팅", "📊 매출데이터", "👥 고객데이터", "✨ 리뉴얼"])
 
     # ==========================================
@@ -593,7 +622,7 @@ else:
                     st.markdown(f"<h3 style='color: #0f172a; text-align: center; border-bottom: 3px solid #4f46e5; padding-bottom: 10px; margin-bottom: 20px;'>{view['title']}</h3>", unsafe_allow_html=True)
                     s_type, s_addr = get_store_metadata(view['store_name'])
                     
-                    # 지점별 다이내믹 초디테일 입지 상권분석 정밀평가 리포트
+                    # 지점별 다이내믹 정밀 상권분석 리포트 호출
                     render_location_consulting_ui(view['store_name'], s_type, s_addr)
 
     # ==========================================
