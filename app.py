@@ -5,7 +5,6 @@ import os
 import glob
 import re
 import hashlib
-import streamlit.components.v1 as components
 
 # 1. 페이지 레이아웃 및 기본 설정
 st.set_page_config(
@@ -15,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. 커스텀 CSS (디자인 + 테이블 컨텍스트 메뉴 한글화)
+# 2. 커스텀 CSS & 한글 메뉴 변환 스타일 (Streamlit Glide Data Grid 메뉴 완벽 한글화)
 st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -49,39 +48,38 @@ st.markdown("""
     span[data-baseweb="tag"] { background-color: #e0e7ff !important; color: #3730a3 !important; font-weight: 800 !important; font-size: 14px !important; border-radius: 6px !important; border: 1px solid #c7d2fe !important; }
     div[role="radiogroup"] { padding: 5px; background-color: #f8fafc; border-radius: 8px;}
 </style>
-""", unsafe_allow_html=True)
 
-# 📌 Streamlit 데이터 표 팝업 메뉴 한글 자동 번역 스크립트 실행
-components.html("""
+<!-- 📌 데이터표 세로점 세개 (...) 클릭 시 영문 메뉴 한글 실시간 번역 스크립트 -->
 <script>
-const translations = {
-    'Sort ascending': '오름차순 정렬',
-    'Sort descending': '내림차순 정렬',
-    'Statistics': '통계 요약',
-    'Format': '서식 설정',
-    'Autosize': '너비 자동 맞춤',
-    'Pin column': '열 고정',
-    'Hide column': '열 숨기기'
-};
+(function() {
+    const map = {
+        'Sort ascending': '오름차순 정렬',
+        'Sort descending': '내림차순 정렬',
+        'Statistics': '통계 요약',
+        'Format': '서식 설정',
+        'Autosize': '너비 자동 맞춤',
+        'Pin column': '열 고정',
+        'Hide column': '열 숨기기'
+    };
 
-function translateTableMenu() {
-    const parentDoc = window.parent.document;
-    const elements = parentDoc.querySelectorAll('div, span, button');
-    elements.forEach(el => {
-        if (el.children.length === 0 && el.textContent) {
-            const trimmed = el.textContent.trim();
-            if (translations[trimmed]) {
-                el.textContent = translations[trimmed];
+    function replaceText() {
+        const nodes = document.querySelectorAll('div, span, button');
+        nodes.forEach(node => {
+            if (node.childNodes.length === 1 && node.childNodes[0].nodeType === 3) {
+                const text = node.textContent.trim();
+                if (map[text]) {
+                    node.textContent = map[text];
+                }
             }
-        }
-    });
-}
+        });
+    }
 
-const observer = new MutationObserver(translateTableMenu);
-observer.observe(window.parent.document.body, { childList: true, subtree: true });
-setInterval(translateTableMenu, 300);
+    const obs = new MutationObserver(replaceText);
+    obs.observe(document.body, { childList: true, subtree: true });
+    setInterval(replaceText, 200);
+})();
 </script>
-""", height=0, width=0)
+""", unsafe_allow_html=True)
 
 # 🎨 공통 컬러 팔레트
 CATEGORY_COLORS = {
@@ -681,7 +679,7 @@ else:
                     render_location_consulting_ui(view['store_name'], s_type, s_addr)
 
     # ==========================================
-    # [탭 2] 매출/주문데이터 (📌 수량 GAP 내림차순 정렬 표)
+    # [탭 2] 매출/주문데이터
     # ==========================================
     with tab_sales:
         if not views:
@@ -827,7 +825,7 @@ else:
                     if show_orders: draw_view_chart("주문액", global_max_orders)
                     if show_margin: draw_view_chart("마진율", global_max_margin)
 
-                    # 📌 ⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 표 (GAP 내림차순 및 컬럼 정밀 설정)
+                    # 📌 ⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 표
                     st.markdown("<br><h4 style='color:#dc2626;'>⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 (자점매입/POS 미입력 의심)</h4>", unsafe_allow_html=True)
                     st.markdown("<p style='font-size:12.5px; color:#64748b;'>주문 수량(본사 출고) 대비 판매 수량(POS 입력) 간 차이(GAP)를 수량 GAP 내림차순으로 자동 정렬하여 비교합니다.</p>", unsafe_allow_html=True)
 
