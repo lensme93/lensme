@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import os
 import glob
+import re
 
 # 1. 페이지 레이아웃 및 기본 설정
 st.set_page_config(page_title="렌즈미 매장 컨설팅 리포트", page_icon="images/logo.png", layout="wide", initial_sidebar_state="expanded")
@@ -47,35 +48,56 @@ CATEGORY_COLORS = {
     '근시용': '#3b82f6', '난시용': '#ef4444', '해당없음': '#94a3b8'
 }
 
-# 📌 가맹점 주소 데이터 로드 함수 (렌즈미 글라스미 가맹점 리스트_250214.xlsx 활용)
+# 📌 가맹점 주소 데이터 로드 함수 ("가맹점 주소 형태.xlsx" 활용)
 @st.cache_data
 def load_store_info():
     try:
-        # 첫 번째 시트(지역담당자 현황)에서 주소 매핑
-        df_list = pd.read_excel("렌즈미 글라스미 가맹점 리스트_250214.xlsx", sheet_name=0)
+        # 첫 번째 시트에서 가맹점명과 주소를 읽어옵니다.
+        df_list = pd.read_excel("가맹점 주소 형태.xlsx", sheet_name=0)
         store_map = {}
         for _, row in df_list.iterrows():
             addr = row['주소'] if pd.notna(row['주소']) else "주소 정보 없음"
-            if pd.notna(row['가맹점명.1']):
-                store_map[str(row['가맹점명.1']).strip()] = addr
             if pd.notna(row['가맹점명']):
-                store_map[str(row['가맹점명']).strip()] = addr
+                original_name = str(row['가맹점명']).strip()
+                store_map[original_name] = addr
+                
+                # 매장명 매칭 확률을 높이기 위해 괄호(예: (67)) 제거된 이름도 저장
+                clean_name = re.sub(r'\([^)]*\)', '', original_name).strip()
+                store_map[clean_name] = addr
+                
+                # '렌즈미' 등의 수식어가 빠진 이름도 저장
+                short_name = clean_name.replace('렌즈미', '').replace('글라스미', '').strip()
+                store_map[short_name] = addr
         return store_map
     except Exception as e:
-        st.sidebar.warning("가맹점 리스트 엑셀 파일을 찾을 수 없어 주소를 불러오지 못했습니다.")
+        st.sidebar.warning("가맹점 주소 엑셀 파일을 찾을 수 없어 주소를 불러오지 못했습니다.")
         return {}
 
 store_map = load_store_info()
 
-def get_address(store_name):
-    # 정확히 일치하는 경우
-    if store_name in store_map:
-        return store_map[store_name]
-    # 부분 일치하는 경우 ('렌즈미 OO점' 등)
+def get_store_details(store_name):
+    address = "주소 정보 없음"
+    # 1. 주소 매핑 찾기
     for k, v in store_map.items():
-        if k in store_name or store_name in k:
-            return v
-    return "주소 정보 없음"
+        # 서로 부분 일치하는 경우 해당 주소 반환
+        if store_name in k or k in store_name:
+            address = v
+            break
+            
+    # 2. 키워드 기반 상권 분석 코멘트 생성
+    combined_text = address + " " + store_name
+    if "지하" in combined_text or "지하상가" in combined_text:
+        comment = "🚶 <b>[지하/지하상가 상권]</b> 유동인구가 풍부합니다. 윈도우 쇼핑객 유입을 위한 시각적 VMD(디스플레이)와 빠른 고객 응대가 매우 중요합니다."
+    elif "대학" in combined_text or "대점" in store_name or "대역" in store_name:
+        comment = "🎓 <b>[대학가 상권]</b> 20대 젊은 층 비중이 높습니다. 트렌디한 신제품 컬러렌즈와 가성비 중심의 원데이 마케팅이 효과적입니다."
+    elif "마트" in combined_text or "아울렛" in combined_text or "몰" in combined_text or "플라자" in combined_text or "프라자" in combined_text:
+        comment = "🛒 <b>[대형/복합몰 상권]</b> 가족 단위 방문이 많고 주말 매출 비중이 높습니다. 프리미엄 투명렌즈 및 부대용품 연계 판매가 용이합니다."
+    elif "역" in combined_text:
+        comment = "🚆 <b>[역세권 상권]</b> 출퇴근 유동인구가 많습니다. 1회성 방문객을 단골로 전환하기 위한 카카오 채널/멤버십 재방문 유도 프로모션이 핵심입니다."
+    else:
+        comment = "🏘️ <b>[주거/밀착형 상권]</b> 지역 내 목적성 방문 고객이 주를 이룹니다. 고객과의 친밀도 형성과 꼼꼼한 구매 이력(CRM) 관리를 통해 단골을 다지는 것이 가장 중요합니다."
+        
+    return address, comment
 
 
 # 🔥 3단계 이중 안전장치를 탑재한 열(Column) 추출 함수
@@ -230,7 +252,7 @@ if not uploaded_files:
     st.markdown("""
     <div style="text-align: center; margin-top: 100px;">
         <h2>📊 렌즈미 매장 컨설팅 대시보드에 오신 것을 환영합니다!</h2>
-        <p style="font-size: 18px; color: #64748b;">좌측 메뉴에서 가맹점 엑셀 파일을 업로드해 주세요.</p>
+        <p style="font-size: 18px; color: #64748b;">좌측 메뉴에서 가맹점 매출 엑셀 파일을 업로드해 주세요.</p>
     </div>
     """, unsafe_allow_html=True)
 else:
@@ -271,10 +293,15 @@ else:
         
         y_text = ", ".join(selected_years) if selected_years else "전체 연도"
         m_text = ", ".join(selected_months) if selected_months else "전체 기간"
-        address = get_address(selected_store)
+        address, store_comment = get_store_details(selected_store)
         header_subtitle = f"단일 매장 조회 | 대상 지점: {selected_store} | {y_text} ({m_text})"
         
-        views.append({"title": f"🏪 {selected_store} 실적<br><span style='font-size:16px; color:#64748b;'>📍 {address}</span>", "df": time_filtered_df})
+        views.append({
+            "title": f"🏪 {selected_store} 실적<br>"
+                     f"<span style='font-size:15px; color:#64748b; font-weight: 500;'>📍 {address}</span><br>"
+                     f"<div style='font-size:14px; background-color:#eff6ff; padding:10px; border-radius:8px; border:1px solid #bfdbfe; color:#1e3a8a; margin-top:8px; text-align:left; font-weight:normal;'>{store_comment}</div>", 
+            "df": time_filtered_df
+        })
 
     # 2. 단일 매장 기간 비교
     elif compare_mode == "단일 매장 기간 비교":
@@ -292,7 +319,7 @@ else:
         p2_ints = [int(m.replace('월', '')) for m in period2]
         store_df = base_df[base_df['거래처(부서)'] == selected_store]
         
-        address = get_address(selected_store)
+        address, store_comment = get_store_details(selected_store)
         header_subtitle = f"단일 매장 기간 비교 모드 | 대상 지점: {selected_store}"
         
         v1_df, v2_df = store_df.copy(), store_df.copy()
@@ -310,8 +337,11 @@ else:
         t2_y = ",".join(p2_years) if p2_years else "연도 미선택"
         t2_m = f"({','.join(period2)})" if period2 else ""
         
-        views.append({"title": f"[{selected_store}] {t1_y} {t1_m}<br><span style='font-size:16px; color:#64748b;'>📍 {address}</span>", "df": v1_df})
-        views.append({"title": f"[{selected_store}] {t2_y} {t2_m}<br><span style='font-size:16px; color:#64748b;'>📍 {address}</span>", "df": v2_df})
+        common_title_format = (f"<span style='font-size:15px; color:#64748b; font-weight: 500;'>📍 {address}</span><br>"
+                               f"<div style='font-size:14px; background-color:#eff6ff; padding:10px; border-radius:8px; border:1px solid #bfdbfe; color:#1e3a8a; margin-top:8px; text-align:left; font-weight:normal;'>{store_comment}</div>")
+        
+        views.append({"title": f"[{selected_store}] {t1_y} {t1_m}<br>{common_title_format}", "df": v1_df})
+        views.append({"title": f"[{selected_store}] {t2_y} {t2_m}<br>{common_title_format}", "df": v2_df})
 
     # 3. 2개 이상 매장 비교
     else:
@@ -330,8 +360,13 @@ else:
         header_subtitle = f"2개이상 매장 비교 모드 | 대상: {len(selected_stores)}개 지점 | {y_text} ({m_text})"
         
         for store in selected_stores:
-            address = get_address(store)
-            views.append({"title": f"🏪 {store} 실적<br><span style='font-size:16px; color:#64748b;'>📍 {address}</span>", "df": time_filtered_df[time_filtered_df['거래처(부서)'] == store]})
+            address, store_comment = get_store_details(store)
+            views.append({
+                "title": f"🏪 {store} 실적<br>"
+                         f"<span style='font-size:15px; color:#64748b; font-weight: 500;'>📍 {address}</span><br>"
+                         f"<div style='font-size:14px; background-color:#eff6ff; padding:10px; border-radius:8px; border:1px solid #bfdbfe; color:#1e3a8a; margin-top:8px; text-align:left; font-weight:normal;'>{store_comment}</div>",
+                "df": time_filtered_df[time_filtered_df['거래처(부서)'] == store]
+            })
 
     st.sidebar.markdown("---")
     
