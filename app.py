@@ -774,4 +774,73 @@ else:
             for i, img_file in enumerate(uploaded_images):
                 with cols[i % 3]:
                     st.image(img_file, caption=img_file.name, use_container_width=True)
-                    
+
+# 🧠 상권 분석 및 종합 평가 컨설팅 멘트 자동 생성 함수 (상권 평가 강화)
+def generate_location_consulting(store_name, store_type, address):
+    addr_str = str(address)
+    location_type = "일반 상권"
+    
+    # 상권 분류 및 평가 데이터 산정
+    if any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
+        location_type = "지하상가/유동인구형 상권"
+        score, grade = 88, "A (유동집중형)"
+        eval_metrics = {
+            "유동성": "★★★★★ (최상)",
+            "타겟 적합도": "★★★★☆ (우수)",
+            "접근성": "★★★★★ (최상)",
+            "단골 형성성": "★★☆☆☆ (보통)"
+        }
+    elif any(k in addr_str for k in ['역', '로', '대로', '광장']) and any(k in store_name for k in ['역', '광장']):
+        location_type = "초역세권/유동 중심 상권"
+        score, grade = 92, "S (핵심상권)"
+        eval_metrics = {
+            "유동성": "★★★★★ (최상)",
+            "타겟 적합도": "★★★★☆ (우수)",
+            "접근성": "★★★★★ (최상)",
+            "단골 형성성": "★★★☆☆ (양호)"
+        }
+    elif any(k in addr_str for k in ['대학', '캠퍼스']) or any(k in store_name for k in ['고대', '외대', '대', '교']):
+        location_type = "대학가/1020 영타겟 상권"
+        score, grade = 85, "A (타겟특화형)"
+        eval_metrics = {
+            "유동성": "★★★★☆ (우수)",
+            "타겟 적합도": "★★★★★ (최상 - 1020)",
+            "접근성": "★★★★☆ (우수)",
+            "단골 형성성": "★★★☆☆ (양호)"
+        }
+    elif any(k in addr_str for k in ['시청', '구청', '동', '길', '대로']):
+        location_type = "주거 및 행정 융합 상권"
+        score, grade = 79, "B+ (안정재방문형)"
+        eval_metrics = {
+            "유동성": "★★★☆☆ (양호)",
+            "타겟 적합도": "★★★☆☆ (양호)",
+            "접근성": "★★★★☆ (우수)",
+            "단골 형성성": "★★★★★ (최상)"
+        }
+    else:
+        score, grade = 75, "B (기본상권)"
+        eval_metrics = {
+            "유동성": "★★★☆☆ (양호)",
+            "타겟 적합도": "★★★☆☆ (양호)",
+            "접근성": "★★★☆☆ (양호)",
+            "단골 형성성": "★★★★☆ (우수)"
+        }
+
+    advice = []
+    advice.append(f"📍 **[상권 특징 분석]** 해당 지점은 **'{location_type}'** 환경에 위치하며, 형태는 **'{store_type}'** 매장입니다.")
+    
+    if "지하상가" in location_type or "초역세권" in location_type:
+        advice.append("💡 **[매출 증대 전략]** 유동 인구가 많고 즉흥 구매율이 높은 특성이 있습니다. **트렌디한 PB/컬러렌즈 픽업 매대**를 입구 전면에 배치하고 원데이/행사 렌즈 입간판 홍보를 적극 활용하세요.")
+    elif "대학가" in location_type:
+        advice.append("💡 **[매출 증대 전략]** 1020 세대의 가성비/트렌드 민감도가 극대화되는 상권입니다. **1만~2만원대 트렌디 컬러렌즈**와 SNS 프로모션 연계 마케팅에 중점을 두는 것이 유리합니다.")
+    else:
+        advice.append("💡 **[매출 증대 전략]** 정기 재방문 고객(단골) 비중이 높을 가능성이 큽니다. **원데이 투명렌즈 및 난시용/프리미엄 렌즈 세트 판매**로 객단가 증대를 유도하세요.")
+
+    if store_type in ["샵앤샵", "아이웨어샵"]:
+        advice.append("👓 **[형태별 컨설팅]** 안경원 병행 매장의 이점을 활용하여 **근시/난시 시력검안 연계 서비스**와 안경/렌즈 교차 구매 혜택을 강조하세요.")
+    elif store_type == "글라스미":
+        advice.append("✨ **[형태별 컨설팅]** 글라스미 렌즈/안경 토탈 브랜드 매장으로, **동선 유도형 렌즈 진열 및 고마진 PB 라인업 점유율 확대**에 집중하는 리뉴얼 전략이 권장됩니다.")
+    elif store_type == "단독샵":
+        advice.append("🏬 **[형태별 컨설팅]** 렌즈 전문 샵의 몰입감을 강조할 수 있도록 **체험존 강화 및 인테리어 갤러리 탭**을 참고한 리뉴얼 컨설팅을 진행해보세요.")
+
+    return score, grade, eval_metrics, advice
