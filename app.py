@@ -725,4 +725,3 @@ else:
             for i, img_file in enumerate(uploaded_images):
                 with cols[i % 3]:
                     st.image(img_file, caption=img_file.name, use_container_width=True)
-                    
