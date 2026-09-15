@@ -58,7 +58,6 @@ CATEGORY_COLORS = {
     '근시용': '#3b82f6', '난시용': '#ef4444', '해당없음': '#94a3b8'
 }
 
-# 3단계 이중 안전장치 열 추출 함수
 def get_safe_column(df, possible_names, fallback_idx=None):
     for name in possible_names:
         if name in df.columns:
@@ -67,59 +66,48 @@ def get_safe_column(df, possible_names, fallback_idx=None):
         return df.iloc[:, fallback_idx]
     return pd.Series([''] * len(df))
 
-# 📌 핵심 지점명 정제 함수 (괄호, 숫자, 특수문자, '렌즈미', '점' 전면 제거)
+# 📌 [해결책 B 핵심 1] 강력 지점명 정제 함수 (특수문자, 괄호, 숫자, 렌즈미, 점 삭제)
 def normalize_store_name(val):
     s = str(val)
-    s = re.sub(r'\(.*?\)', '', s)  # 괄호와 괄호 안 내용 삭제
+    s = re.sub(r'\(.*?\)', '', s)  # 괄호 및 안의 내용 제거
     s = s.replace('렌즈미', '').replace('점', '').replace(' ', '').strip()
     return s
 
-# 📌 가맹점 정보(주소/형태) 엑셀 로드
+# 📌 [해결책 B 핵심 2] 가맹점 주소/형태 데이터프레임 자동 로드
 @st.cache_data
-def load_store_info_excel():
-    base_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
-    excel_path = os.path.join(base_dir, "가맹점 주소 형태.xlsx")
-    
-    if not os.path.exists(excel_path):
-        excel_path = "가맹점 주소 형태.xlsx"
-    
+def load_store_info_df():
+    excel_path = "가맹점 주소 형태.xlsx"
     if os.path.exists(excel_path):
         try:
-            info_df = pd.read_excel(excel_path)
-            info_df['matching_key'] = info_df['가맹점명'].apply(normalize_store_name)
-            return info_df
-        except Exception as e:
-            st.error(f"가맹점 정보 파일 읽기 실패: {e}")
+            df_info = pd.read_excel(excel_path)
+            df_info.columns = df_info.columns.astype(str).str.strip()
+            df_info['matching_key'] = df_info['가맹점명'].apply(normalize_store_name)
+            return df_info
+        except Exception:
             return pd.DataFrame()
-            
     return pd.DataFrame()
 
-STORE_INFO_DF = load_store_info_excel()
+STORE_INFO_DF = load_store_info_df()
 
-# 📌 유사 지점명 유연 매칭 알고리즘 함수
+# 📌 [해결책 B 핵심 3] 3단계 유연 매칭 알고리즘
 def get_store_metadata(store_name):
     if STORE_INFO_DF.empty:
-        return "정보 없음", "가맹점 주소 형태.xlsx 파일 인식 불가"
+        return "정보 없음", "가맹점 주소 형태.xlsx 로드 실패"
     
     clean_target = normalize_store_name(store_name)
-    
     if not clean_target:
         return "미지정", "주소 미등록"
 
-    # 1. 완전 일치 매칭
+    # 1. 정제 키 완전 일치
     matched = STORE_INFO_DF[STORE_INFO_DF['matching_key'] == clean_target]
     
-    # 2. 양방향 부분 매칭 (예: '일산중앙' <-> '일산중앙점', '석계' <-> '석계역')
+    # 2. 포함 관계 양방향 매칭
     if matched.empty:
-        matched = STORE_INFO_DF[
-            STORE_INFO_DF['matching_key'].apply(lambda x: (clean_target in x or x in clean_target) if x else False)
-        ]
+        matched = STORE_INFO_DF[STORE_INFO_DF['matching_key'].apply(lambda x: (clean_target in x or x in clean_target) if x else False)]
         
-    # 3. 글자 수 기반 유사도 매칭 (두 글자 이상 겹치는 경우)
+    # 3. 앞 2글자 유사도 매칭
     if matched.empty and len(clean_target) >= 2:
-        matched = STORE_INFO_DF[
-            STORE_INFO_DF['matching_key'].apply(lambda x: (clean_target[:2] in x or x[:2] in clean_target) if x else False)
-        ]
+        matched = STORE_INFO_DF[STORE_INFO_DF['matching_key'].apply(lambda x: (clean_target[:2] in x or x[:2] in clean_target) if x else False)]
     
     if not matched.empty:
         s_type = matched.iloc[0]['가맹점 형태']
@@ -152,7 +140,7 @@ def generate_location_consulting(store_name, store_type, address):
     else:
         advice.append("💡 **[매출 증대 전략]** 정기 재방문 고객(단골) 비중이 높을 가능성이 큽니다. **원데이 투명렌즈 및 난시용/프리미엄 렌즈 세트 판매**로 객단가 증대를 유도하세요.")
 
-    if store_type == "샵앤샵" or store_type == "아이웨어샵":
+    if store_type in ["샵앤샵", "아이웨어샵"]:
         advice.append("👓 **[형태별 컨설팅]** 안경원 병행 매장의 이점을 활용하여 **근시/난시 시력검안 연계 서비스**와 안경/렌즈 교차 구매 혜택을 강조하세요.")
     elif store_type == "글라스미":
         advice.append("✨ **[형태별 컨설팅]** 글라스미 렌즈/안경 토탈 브랜드 매장으로, **동선 유도형 렌즈 진열 및 고마진 PB 라인업 점유율 확대**에 집중하는 리뉴얼 전략이 권장됩니다.")
@@ -170,7 +158,6 @@ def load_data(uploaded_files):
         try:
             df = pd.read_excel(file)
             df['파일명'] = file.name
-            
             df.columns = df.columns.astype(str).str.replace(' ', '').str.replace('\n', '').str.strip()
             
             df['전표번호_임시'] = get_safe_column(df, ['전표번호', '영수증번호', '주문번호'])
