@@ -35,6 +35,7 @@ st.markdown("""
     .border-violet { border-top: 4px solid #8b5cf6; }
     .border-pink { border-top: 4px solid #ec4899; }
     .border-sky { border-top: 4px solid #0284c7; }
+    .border-red { border-top: 4px solid #ef4444; }
     #MainMenu, footer {visibility: hidden;}
     button[data-baseweb="tab"] {font-size: 18px !important; font-weight: 700 !important; padding: 20px !important;}
     .stFileUploader { padding: 15px; background-color: #f1f5f9; border-radius: 10px; border: 2px dashed #cbd5e1; margin-bottom: 20px;}
@@ -310,7 +311,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     """, unsafe_allow_html=True)
 
-# 3. 데이터 로드 및 맵핑 (📌 판매 실적 + 추후 주문 수량/주문액 확장 매핑 연동)
+# 3. 데이터 로드 및 맵핑 (📌 판매 실적 + 주문 수량/주문액 확장 연동)
 @st.cache_data
 def load_data(uploaded_files):
     all_dfs = []
@@ -321,7 +322,6 @@ def load_data(uploaded_files):
             df['파일명'] = file.name
             df.columns = df.columns.astype(str).str.replace(' ', '').str.replace('\n', '').str.strip()
             
-            # 판매 데이터 컬럼 매핑
             df['전표번호_임시'] = get_safe_column(df, ['전표번호', '영수증번호', '주문번호'])
             df['일자_임시'] = get_safe_column(df, ['방문일자', '일자', '날짜', '결제일', '판매일'], 0)
             df['상품명_임시'] = get_safe_column(df, ['상품명2', '상품명', '제품명'])
@@ -329,7 +329,7 @@ def load_data(uploaded_files):
             df['수량_임시'] = get_safe_column(df, ['합계', '수량', '판매수량'])
             df['공급단가_임시'] = get_safe_column(df, ['공급단가', '원가', '단가'], 11)
             
-            # 📌 추후 주문 데이터 확장 대비 컬럼 동적 매핑 (발주수량, 주문액, 주문금액 등)
+            # 📌 주문 수량 및 주문액 동적 매핑
             df['주문수량_임시'] = get_safe_column(df, ['주문수량', '발주수량', '주문합계', '오더수량'])
             df['주문액_임시'] = get_safe_column(df, ['주문액', '주문금액', '발주금액', '오더금액'])
 
@@ -362,7 +362,6 @@ def load_data(uploaded_files):
             df['총원가'] = df['공급단가'] * df['합계']
             df['총마진'] = df['금액'] - df['총원가']
 
-            # 📌 주문 수량 및 주문액 산출 로직 (파일에 관련 열이 없을 경우 기본값 0 처리)
             df['주문수량'] = to_num(df['주문수량_임시'])
             df['주문액'] = to_num(df['주문액_임시'])
             
@@ -636,7 +635,7 @@ else:
                     render_location_consulting_ui(view['store_name'], s_type, s_addr)
 
     # ==========================================
-    # [탭 2] 매출/주문데이터 (📌 판매 실적 VS 주문 실적 비교 틀 구현)
+    # [탭 2] 매출/주문데이터 (📌 자점매입/POS 미입력 의심 GAP 분석 표 구현)
     # ==========================================
     with tab_sales:
         if not views:
@@ -707,7 +706,7 @@ else:
                     </div>
                     ''', unsafe_allow_html=True)
                     
-                    # 📌 판매 VS 주문 KPI 카드 배치
+                    # 📌 KPI 카드
                     if compare_mode == "단일 매장 조회":
                         kpi_cols = st.columns(6)
                         with kpi_cols[0]: st.markdown(f'<div class="metric-card border-indigo"><div class="metric-label">총 매출액 (판매)</div><div class="metric-value">{int(total_sales):,} 원</div></div>', unsafe_allow_html=True)
@@ -782,8 +781,67 @@ else:
                     if show_orders: draw_view_chart("주문액", global_max_orders)
                     if show_margin: draw_view_chart("마진율", global_max_margin)
 
-                    # 📌 판매 실적 VS 주문 실적 대조 테이블
-                    st.markdown("<br><h4 style='color:#334155;'>📋 상세 판매 / 주문 실적 현황</h4>", unsafe_allow_html=True)
+                    # 📌 [요청 반영] ⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 표 추가
+                    st.markdown("<br><h4 style='color:#dc2626;'>⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 (자점매입/POS 미입력 의심)</h4>", unsafe_allow_html=True)
+                    st.markdown("<p style='font-size:12.5px; color:#64748b;'>주문 수량(본사 출고) 대비 판매 수량(POS 입력) 간 차이(GAP)를 비교하여 이상 거래를 자동 판별합니다.</p>", unsafe_allow_html=True)
+
+                    gap_base_df = v_df.groupby(['Custom_Channel', '상품명2']).agg(
+                        판매수량=('합계', 'sum'),
+                        매출액=('금액', 'sum'),
+                        주문수량=('주문수량', 'sum'),
+                        주문액=('주문액', 'sum')
+                    ).reset_index()
+
+                    # 수량 갭(GAP) 계산: 판매수량 - 주문수량
+                    gap_base_df['수량_GAP(개)'] = gap_base_df['판매수량'] - gap_base_df['주문수량']
+                    gap_base_df['금액_GAP(원)'] = gap_base_df['매출액'] - gap_base_df['주문액']
+
+                    def detect_anomaly(row):
+                        if row['수량_GAP(개)'] > 0 and row['주문수량'] == 0:
+                            return '🔴 무체 사급/자점매입 강함 (본사 주문 0건)'
+                        elif row['수량_GAP(개)'] > 0:
+                            return '🟠 자점매입/사급 의심 (판매>주문)'
+                        elif row['수량_GAP(개)'] < 0:
+                            return '🔵 POS 판매 미입력/재고 누적 의심 (주문>판매)'
+                        else:
+                            return '✅ 정상 (일치)'
+
+                    gap_base_df['진단_유형'] = gap_base_df.apply(detect_anomaly, axis=1)
+
+                    filter_anomaly_option = st.radio(
+                        "🔍 필터 옵션:",
+                        ['전체 보기', '🚨 자점매입/사급 의심 품목만 보기', '📦 POS 미입력/재고 누적 품목만 보기'],
+                        horizontal=True,
+                        key=f"anomaly_radio_{view['store_name']}_{idx}"
+                    )
+
+                    filtered_gap_df = gap_base_df.copy()
+                    if filter_anomaly_option == '🚨 자점매입/사급 의심 품목만 보기':
+                        filtered_gap_df = filtered_gap_df[filtered_gap_df['수량_GAP(개)'] > 0]
+                    elif filter_anomaly_option == '📦 POS 미입력/재고 누적 품목만 보기':
+                        filtered_gap_df = filtered_gap_df[filtered_gap_df['수량_GAP(개)'] < 0]
+
+                    filtered_gap_df = filtered_gap_df.sort_values(by=['수량_GAP(개)'], ascending=False)
+                    
+                    # 서식 변환
+                    display_gap_df = filtered_gap_df.copy()
+                    display_gap_df['매출액(원)'] = display_gap_df['매출액'].apply(lambda x: f"{int(x):,}")
+                    display_gap_df['주문액(원)'] = display_gap_df['주문액'].apply(lambda x: f"{int(x):,}")
+                    display_gap_df['금액_GAP(원)'] = display_gap_df['금액_GAP(원)'].apply(lambda x: f"{int(x):,}")
+                    display_gap_df = display_gap_df.drop(columns=['매출액', '주문액'])
+                    
+                    display_gap_df.columns = ['카테고리', '품목명', '판매수량(개)', '주문수량(개)', '수량 GAP(개)', '금액 GAP(원)', '진단 유형', '매출액(원)', '주문액(원)']
+                    display_gap_df = display_gap_df[['카테고리', '품목명', '진단 유형', '판매수량(개)', '주문수량(개)', '수량 GAP(개)', '매출액(원)', '주문액(원)', '금액 GAP(원)']]
+
+                    if display_gap_df.empty:
+                        st.info("💡 해당 조건에 해당되는 이상 거래 감지 품목이 없습니다.")
+                    else:
+                        st.dataframe(display_gap_df, use_container_width=True, height=280)
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # 📌 상세 판매 / 주문 실적 현황 전체 표
+                    st.markdown("<h4 style='color:#334155;'>📋 전체 상세 판매 / 주문 실적 현황</h4>", unsafe_allow_html=True)
                     table_df = v_df.groupby(['Custom_Channel', 'Color_Type', 'Vision_Type', 'Price_Type', '상품명2']).agg(
                         판매수량=('합계', 'sum'),
                         매출액=('금액', 'sum'),
