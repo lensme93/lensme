@@ -108,11 +108,18 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 세부 정밀 평가 내용이 대폭 강화된 상권 컨설팅 UI 함수
+# 🧠 상권 분석 독립 탭 전용 UI 렌더링 함수
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
-    # 오렌즈 입지 비교 문구
+    # 📌 가맹점 형태 & 주소 카드 노출
+    st.markdown(f'''
+    <div style="background-color: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 13px;">
+        <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
+        <b>📍 매장 주소:</b> {address}
+    </div>
+    ''', unsafe_allow_html=True)
+    
     has_olens_nearby = any(k in addr_str or k in store_name for k in ['역', '대학', '대로', '지하', '광장', '로', '동', '시청', '구청'])
     
     if has_olens_nearby:
@@ -126,7 +133,6 @@ def render_location_consulting_ui(store_name, store_type, address):
             "• <b>핵심 대응 전략:</b> 1만~2만원대 가성비 PB 라인업 및 SNS 프로모션을 적극 활용하여 지역 단골 고객층을 빠르게 고착화하세요."
         )
 
-    # 📌 5대 항목별 초디테일 정밀 평가 및 솔루션 데이터
     if any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
         location_type = "지하상가/유동인구형 상권"
         scores = {"유동성·접근성": "24 / 25점", "배후 수요성": "18 / 25점", "집객력·활성화": "22 / 20점", "경쟁성·희소성": "11 / 15점", "입지 안정성": "11 / 15점"}
@@ -610,7 +616,24 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    tab_sales, tab_customer, tab_renewal = st.tabs(["📊 매출데이터", "👥 고객데이터", "✨ 리뉴얼"])
+    # 📌 [요청 반영] 4대 탭 구조 개편: '상권분석컨설팅' 탭을 맨 왼쪽에 추가
+    tab_consulting, tab_sales, tab_customer, tab_renewal = st.tabs(["🗺️ 상권분석컨설팅", "📊 매출데이터", "👥 고객데이터", "✨ 리뉴얼"])
+
+    # ==========================================
+    # [신규 탭] 🗺️ 상권분석컨설팅
+    # ==========================================
+    with tab_consulting:
+        if not views:
+            st.warning("분석할 가맹점 매장을 선택해 주세요.")
+        else:
+            view_cols_consulting = st.columns(len(views)) if len(views) > 0 else st.columns(1)
+            for idx, view in enumerate(views):
+                with view_cols_consulting[idx]:
+                    st.markdown(f"<h3 style='color: #0f172a; text-align: center; border-bottom: 3px solid #4f46e5; padding-bottom: 10px; margin-bottom: 20px;'>{view['title']}</h3>", unsafe_allow_html=True)
+                    s_type, s_addr = get_store_metadata(view['store_name'])
+                    
+                    # 입지 상권분석 정밀평가 리포트 독립 노출
+                    render_location_consulting_ui(view['store_name'], s_type, s_addr)
 
     # ==========================================
     # [탭 1] 매출데이터
@@ -672,9 +695,6 @@ else:
                         <b>📍 매장 주소:</b> {s_addr}
                     </div>
                     ''', unsafe_allow_html=True)
-                    
-                    # 💡 정밀 상권 평가 및 독립 오렌즈 입지 비교 박스 호출
-                    render_location_consulting_ui(view['store_name'], s_type, s_addr)
                     
                     if compare_mode == "단일 매장 조회":
                         kpi_cols = st.columns(5)
