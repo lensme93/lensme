@@ -48,52 +48,63 @@ CATEGORY_COLORS = {
     '근시용': '#3b82f6', '난시용': '#ef4444', '해당없음': '#94a3b8'
 }
 
-# 📌 가맹점 주소 데이터 로드 함수 ("가맹점 주소 형태.xlsx" 활용)
+# 📌 가맹점 주소 데이터 로드 함수 (캐시 적용 및 에러 핸들링 강화)
 @st.cache_data
 def load_store_info():
+    if not os.path.exists("가맹점 주소 형태.xlsx"):
+        return None  # 파일이 없으면 명시적으로 None 반환
+    
     try:
-        # 첫 번째 시트에서 가맹점명과 주소를 읽어옵니다.
         df_list = pd.read_excel("가맹점 주소 형태.xlsx", sheet_name=0)
         store_map = {}
         for _, row in df_list.iterrows():
-            addr = row['주소'] if pd.notna(row['주소']) else "주소 정보 없음"
+            addr = str(row['주소']).strip() if pd.notna(row['주소']) else "주소 정보 없음"
             if pd.notna(row['가맹점명']):
                 original_name = str(row['가맹점명']).strip()
                 store_map[original_name] = addr
                 
-                # 매장명 매칭 확률을 높이기 위해 괄호(예: (67)) 제거된 이름도 저장
+                # 괄호 제거된 이름 저장
                 clean_name = re.sub(r'\([^)]*\)', '', original_name).strip()
-                store_map[clean_name] = addr
+                if clean_name: store_map[clean_name] = addr
                 
-                # '렌즈미' 등의 수식어가 빠진 이름도 저장
+                # '렌즈미/글라스미' 수식어가 빠진 이름 저장
                 short_name = clean_name.replace('렌즈미', '').replace('글라스미', '').strip()
-                store_map[short_name] = addr
+                if short_name: store_map[short_name] = addr
+                
         return store_map
     except Exception as e:
-        st.sidebar.warning("가맹점 주소 엑셀 파일을 찾을 수 없어 주소를 불러오지 못했습니다.")
-        return {}
+        return None
 
 store_map = load_store_info()
 
+# 파일 누락 시 강력한 경고 알림
+if store_map is None:
+    st.error("🚨 **'가맹점 주소 형태.xlsx' 파일을 찾을 수 없거나 읽는 데 실패했습니다.** 파이썬 실행 경로에 파일이 있는지 확인해주세요!")
+    store_map = {}
+
 def get_store_details(store_name):
     address = "주소 정보 없음"
-    # 1. 주소 매핑 찾기
+    search_target = str(store_name).replace(" ", "") # 띄어쓰기 무시를 위해 공백 제거
+    
+    # 1. 띄어쓰기를 모두 없앤 상태로 강력하게 비교
     for k, v in store_map.items():
-        # 서로 부분 일치하는 경우 해당 주소 반환
-        if store_name in k or k in store_name:
+        key_nospace = k.replace(" ", "")
+        if search_target in key_nospace or key_nospace in search_target:
             address = v
             break
             
     # 2. 키워드 기반 상권 분석 코멘트 생성
     combined_text = address + " " + store_name
     if "지하" in combined_text or "지하상가" in combined_text:
-        comment = "🚶 <b>[지하/지하상가 상권]</b> 유동인구가 풍부합니다. 윈도우 쇼핑객 유입을 위한 시각적 VMD(디스플레이)와 빠른 고객 응대가 매우 중요합니다."
+        comment = "🚶 <b>[지하/지하상가 상권]</b> 유동인구가 풍부합니다. 윈도우 쇼핑객 유입을 위한 시각적 VMD(디스플레이)와 빠른 응대가 매우 중요합니다."
     elif "대학" in combined_text or "대점" in store_name or "대역" in store_name:
-        comment = "🎓 <b>[대학가 상권]</b> 20대 젊은 층 비중이 높습니다. 트렌디한 신제품 컬러렌즈와 가성비 중심의 원데이 마케팅이 효과적입니다."
+        comment = "🎓 <b>[대학가 상권]</b> 20대 젊은 층 비중이 높습니다. 트렌디한 신제품 컬러렌즈와 가성비 중심의 프로모션이 효과적입니다."
     elif "마트" in combined_text or "아울렛" in combined_text or "몰" in combined_text or "플라자" in combined_text or "프라자" in combined_text:
-        comment = "🛒 <b>[대형/복합몰 상권]</b> 가족 단위 방문이 많고 주말 매출 비중이 높습니다. 프리미엄 투명렌즈 및 부대용품 연계 판매가 용이합니다."
+        comment = "🛒 <b>[대형/복합몰 상권]</b> 가족 단위 방문이 많고 주말 비중이 높습니다. 프리미엄 투명렌즈 및 부대용품 연계 판매가 용이합니다."
     elif "역" in combined_text:
-        comment = "🚆 <b>[역세권 상권]</b> 출퇴근 유동인구가 많습니다. 1회성 방문객을 단골로 전환하기 위한 카카오 채널/멤버십 재방문 유도 프로모션이 핵심입니다."
+        comment = "🚆 <b>[역세권 상권]</b> 출퇴근/환승 유동인구가 많습니다. 1회성 방문객을 단골로 전환하기 위한 재방문 유도(CRM/멤버십)가 핵심입니다."
+    elif address == "주소 정보 없음":
+        comment = "⚠️ 주소 정보가 등록되지 않은 매장입니다. 상권 맞춤 분석을 위해 엑셀에 주소를 업데이트 해주세요."
     else:
         comment = "🏘️ <b>[주거/밀착형 상권]</b> 지역 내 목적성 방문 고객이 주를 이룹니다. 고객과의 친밀도 형성과 꼼꼼한 구매 이력(CRM) 관리를 통해 단골을 다지는 것이 가장 중요합니다."
         
@@ -246,13 +257,13 @@ def load_data(uploaded_files):
 # 🚀 사이드바 및 필터 로직
 # ==========================================
 st.sidebar.title("📁 데이터 업로드")
-uploaded_files = st.sidebar.file_uploader("가맹점 엑셀 파일을 모두 드래그하여 올려주세요", type=["xlsx", "xls"], accept_multiple_files=True)
+uploaded_files = st.sidebar.file_uploader("가맹점 매출 엑셀 파일을 모두 드래그하여 올려주세요", type=["xlsx", "xls"], accept_multiple_files=True)
 
 if not uploaded_files:
     st.markdown("""
     <div style="text-align: center; margin-top: 100px;">
         <h2>📊 렌즈미 매장 컨설팅 대시보드에 오신 것을 환영합니다!</h2>
-        <p style="font-size: 18px; color: #64748b;">좌측 메뉴에서 가맹점 매출 엑셀 파일을 업로드해 주세요.</p>
+        <p style="font-size: 18px; color: #64748b;">좌측 메뉴에서 <b>매출 엑셀 파일</b>을 업로드해 주세요.</p>
     </div>
     """, unsafe_allow_html=True)
 else:
