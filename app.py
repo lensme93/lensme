@@ -118,37 +118,91 @@ def get_store_metadata(store_name):
     return "미지정", f"주소 미등록 ({clean_target})"
 
 # 🧠 상권 분석 컨설팅 멘트 자동 생성 함수
+def # 🧠 디테일 상권 평가 및 컨설팅 멘트 자동 생성 함수 (보완)
 def generate_location_consulting(store_name, store_type, address):
     addr_str = str(address)
-    location_type = "일반 상권"
     
+    # 1. 상권 유형 및 5대 지표 개별 점수 추정 (입지 정보 기반 알고리즘)
     if any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
         location_type = "지하상가/유동인구형 상권"
+        scores = {"유동성·접근성": 24, "배후 수요성": 18, "집객력·활성화": 22, "경쟁성·희소성": 11, "입지 안정성": 11} # 총점 86 (A등급)
     elif any(k in addr_str for k in ['역', '로', '대로', '광장']) and any(k in store_name for k in ['역', '광장']):
         location_type = "초역세권/유동 중심 상권"
+        scores = {"유동성·접근성": 25, "배후 수요성": 21, "집객력·활성화": 23, "경쟁성·희소성": 10, "입지 안정성": 13} # 총점 92 (A+등급)
     elif any(k in addr_str for k in ['대학', '캠퍼스']) or any(k in store_name for k in ['고대', '외대', '대', '교']):
         location_type = "대학가/1020 영타겟 상권"
-    elif any(k in addr_str for k in ['시청', '구청', '동', '길', '대로']):
+        scores = {"유동성·접근성": 22, "배후 수요성": 22, "집객력·활성화": 20, "경쟁성·희소성": 12, "입지 안정성": 12} # 총점 88 (A등급)
+    else:
         location_type = "주거 및 행정 융합 상권"
+        scores = {"유동성·접근성": 18, "배후 수요성": 23, "집객력·활성화": 18, "경쟁성·희소성": 13, "입지 안정성": 14} # 총점 86 (A등급)
 
+    total_score = sum(scores.values())
+    
+    # 등급 산정
+    if total_score >= 90:
+        grade_badge = '<span style="background-color:#10b981; color:white; padding:3px 8px; border-radius:4px; font-weight:bold;">A+ 등급 (최상급 입지)</span>'
+    elif total_score >= 80:
+        grade_badge = '<span style="background-color:#3b82f6; color:white; padding:3px 8px; border-radius:4px; font-weight:bold;">A 등급 (우수 입지)</span>'
+    elif total_score >= 70:
+        grade_badge = '<span style="background-color:#f59e0b; color:white; padding:3px 8px; border-radius:4px; font-weight:bold;">B 등급 (보통 입지)</span>'
+    else:
+        grade_badge = '<span style="background-color:#ef4444; color:white; padding:3px 8px; border-radius:4px; font-weight:bold;">C 등급 (주의 입지)</span>'
+
+    # 2. 입지 전략 가이드 도출
     advice = []
-    advice.append(f"📍 **[상권 특징 분석]** 해당 지점은 **'{location_type}'** 환경에 위치하며, 형태는 **'{store_type}'** 매장입니다.")
+    advice.append(f"📍 **[상권 유형]** 해당 지점은 **'{location_type}'** 환경에 위치하며, **'{store_type}'** 매장 형태를 띠고 있습니다.")
     
     if "지하상가" in location_type or "초역세권" in location_type:
-        advice.append("💡 **[매출 증대 전략]** 유동 인구가 많고 즉흥 구매율이 높은 특성이 있습니다. **트렌디한 PB/컬러렌즈 픽업 매대**를 입구 전면에 배치하고 원데이/행사 렌즈 입간판 홍보를 적극 활용하세요.")
+        advice.append("💡 **[매출 증대 전략]** 유동인구 비중이 높고 즉흥 구매 성향이 강합니다. **트렌디한 PB/컬러렌즈 픽업 매대**를 입구 전면에 배치하고 행사 입간판 홍보를 강화하세요.")
     elif "대학가" in location_type:
-        advice.append("💡 **[매출 증대 전략]** 1020 세대의 가성비/트렌드 민감도가 극대화되는 상권입니다. **1만~2만원대 트렌디 컬러렌즈**와 SNS 프로모션 연계 마케팅에 중점을 두는 것이 유리합니다.")
+        advice.append("💡 **[매출 증대 전략]** 1020 트렌드 민감도가 높은 상권입니다. **1만~2만원대 트렌디 컬러렌즈** 집중 배치 및 SNS 연계 프로모션 활용이 필수적입니다.")
     else:
-        advice.append("💡 **[매출 증대 전략]** 정기 재방문 고객(단골) 비중이 높을 가능성이 큽니다. **원데이 투명렌즈 및 난시용/프리미엄 렌즈 세트 판매**로 객단가 증대를 유도하세요.")
+        advice.append("💡 **[매출 증대 전략]** 고정 재방문 고객(단골) 비중이 높은 입지입니다. **원데이 투명렌즈 및 난시/프리미엄 렌즈 세트 판매**로 객단가를 증대시키세요.")
 
     if store_type in ["샵앤샵", "아이웨어샵"]:
-        advice.append("👓 **[형태별 컨설팅]** 안경원 병행 매장의 이점을 활용하여 **근시/난시 시력검안 연계 서비스**와 안경/렌즈 교차 구매 혜택을 강조하세요.")
+        advice.append("👓 **[형태별 전략]** 안경원 병행 매장 특성을 살려 **시력검안 연계 서비스**와 안경/렌즈 교차 할인 프로모션을 제언합니다.")
     elif store_type == "글라스미":
-        advice.append("✨ **[형태별 컨설팅]** 글라스미 렌즈/안경 토탈 브랜드 매장으로, **동선 유도형 렌즈 진열 및 고마진 PB 라인업 점유율 확대**에 집중하는 리뉴얼 전략이 권장됩니다.")
+        advice.append("✨ **[형태별 전략]** 토탈 안경 브랜드 특성을 살려 **동선 유도형 진열 방식 적용 및 고마진 PB 점유율 확대**를 권장합니다.")
     elif store_type == "단독샵":
-        advice.append("🏬 **[형태별 컨설팅]** 렌즈 전문 샵의 몰입감을 강조할 수 있도록 **체험존 강화 및 인테리어 갤러리 탭**을 참고한 리뉴얼 컨설팅을 진행해보세요.")
+        advice.append("🏬 **[형태별 전략]** 렌즈 전문 샵의 전문성을 극대화하도록 **체험존 강화 및 시각적 디스플레이 리뉴얼**이 유효합니다.")
 
-    return "\n\n".join(advice)
+    strategy_html = "<br>".join(advice)
+
+    # 3. HTML 스코어카드 및 컨설팅 레이아웃 생성
+    eval_html = f"""
+    <div style="background-color:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:10px; margin-bottom:12px;">
+            <span style="font-size:16px; font-weight:bold; color:#0f172a;">📊 상권 평가 및 정밀 진단 스코어</span>
+            <div>평가 종합 점수: <b>{total_score}점 / 100점</b> &nbsp;|&nbsp; {grade_badge}</div>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; text-align:center; margin-bottom:15px;">
+            <div style="background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+                <div style="font-size:11px; color:#64748b; font-weight:600;">1. 유동성·접근성</div>
+                <div style="font-size:14px; font-weight:bold; color:#4f46e5; margin-top:2px;">{scores['유동성·접근성']} / 25점</div>
+            </div>
+            <div style="background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+                <div style="font-size:11px; color:#64748b; font-weight:600;">2. 배후 수요성</div>
+                <div style="font-size:14px; font-weight:bold; color:#4f46e5; margin-top:2px;">{scores['배후 수요성']} / 25점</div>
+            </div>
+            <div style="background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+                <div style="font-size:11px; color:#64748b; font-weight:600;">3. 집객력·활성화</div>
+                <div style="font-size:14px; font-weight:bold; color:#4f46e5; margin-top:2px;">{scores['집객력·활성화']} / 20점</div>
+            </div>
+            <div style="background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+                <div style="font-size:11px; color:#64748b; font-weight:600;">4. 경쟁성·희소성</div>
+                <div style="font-size:14px; font-weight:bold; color:#4f46e5; margin-top:2px;">{scores['경쟁성·희소성']} / 15점</div>
+            </div>
+            <div style="background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+                <div style="font-size:11px; color:#64748b; font-weight:600;">5. 입지 안정성</div>
+                <div style="font-size:14px; font-weight:bold; color:#4f46e5; margin-top:2px;">{scores['입지 안정성']} / 15점</div>
+            </div>
+        </div>
+        <div style="font-size:13px; color:#334155; line-height:1.6; background-color:#f0fdf4; padding:12px; border-radius:8px; border-left:4px solid #10b981;">
+            {strategy_html}
+        </div>
+    </div>
+    """
+    return eval_html
 
 # 3. 데이터 로드 및 맵핑
 @st.cache_data
