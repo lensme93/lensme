@@ -148,47 +148,17 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 상권 분석 UI 렌더링 함수 (📌 구글맵 지도 상단 노출 적용)
+# 🧠 상권 분석 UI 렌더링 함수 (📌 세부 평가 아래 구글맵 지도 확대 배치 적용)
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
-    # 📌 주소 인코딩 및 구글맵 임베드 URL 생성
-    encoded_addr = urllib.parse.quote(addr_str)
-    google_maps_embed_url = f"https://www.google.com/maps?q={encoded_addr}&output=embed"
-    google_maps_direct_url = f"https://www.google.com/maps/search/?api=1&query={encoded_addr}"
-    
-    # 📌 가맹점 형태 & 매장 주소 + 구글맵 지도 레이아웃
-    map_col1, map_col2 = st.columns([1.6, 1])
-    
-    with map_col1:
-        st.markdown(f'''
-        <div style="background-color: #f1f5f9; padding: 18px 20px; border-radius: 12px; border: 1px solid #e2e8f0; height: 180px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 15px; margin-bottom: 8px;"><b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold; font-size: 16px;">{store_type}</span></div>
-            <div style="font-size: 14px; margin-bottom: 12px; color: #334155;"><b>📍 매장 주소:</b> {address}</div>
-            <div>
-                <a href="{google_maps_direct_url}" target="_blank" style="display: inline-block; background-color: #4f46e5; color: white; padding: 6px 14px; border-radius: 6px; text-decoration: none; font-size: 12.5px; font-weight: bold;">
-                    🗺️ Google 지도에서 크게 보기 ↗
-                </a>
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
-        
-    with map_col2:
-        st.markdown(f'''
-        <div style="border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; height: 180px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-            <iframe 
-                width="100%" 
-                height="180" 
-                style="border:0;" 
-                loading="lazy" 
-                allowfullscreen 
-                referrerpolicy="no-referrer-when-downgrade" 
-                src="{google_maps_embed_url}">
-            </iframe>
-        </div>
-        ''', unsafe_allow_html=True)
-
-    st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+    # 📌 상단 가맹점 정보 카드
+    st.markdown(f'''
+    <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; border: 1px solid #e2e8f0;">
+        <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
+        <b>📍 매장 주소:</b> {address}
+    </div>
+    ''', unsafe_allow_html=True)
 
     hash_seed = int(hashlib.md5((str(store_name) + str(address)).encode('utf-8')).hexdigest(), 16)
     v1 = (hash_seed % 7) - 3
@@ -369,8 +339,9 @@ def render_location_consulting_ui(store_name, store_type, address):
     elif store_type == "단독샵":
         st.markdown("🏬 **[형태별 컨설팅]** 렌즈 전문 샵의 전문성을 강조하도록 **체험형 거울 존 강화 및 시각적 디스플레이 리뉴얼**을 적용해 브랜드 몰입도를 높이세요.")
 
+    # 📌 인근 경쟁사 입지 비교 전용 독립 핑크 박스
     st.markdown(f"""
-    <div style="background-color:#fdf2f8; border:1px solid #fbcfe8; border-left: 5px solid #ec4899; border-radius:10px; padding:16px; margin-top:16px; margin-bottom:24px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
+    <div style="background-color:#fdf2f8; border:1px solid #fbcfe8; border-left: 5px solid #ec4899; border-radius:10px; padding:16px; margin-top:16px; margin-bottom:20px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
         <div style="font-size:14px; font-weight:700; color:#db2777; margin-bottom:8px;">
             💡 [인근 경쟁사 입지 비교 (O-LENS)]
         </div>
@@ -379,6 +350,25 @@ def render_location_consulting_ui(store_name, store_type, address):
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # 📌 [요청 반영] 세부 정밀 평가 내용 및 상권 결론 아래쪽에 구글맵 지도 확대 배치 (버튼 삭제)
+    encoded_addr = urllib.parse.quote(addr_str)
+    google_maps_embed_url = f"https://www.google.com/maps?q={encoded_addr}&output=embed"
+
+    st.markdown(f"<div style='font-size:14.5px; font-weight:700; color:#0f172a; margin-bottom:8px;'>🗺️ 매장 위치 정밀 입지 지도 ({address})</div>", unsafe_allow_html=True)
+    st.markdown(f'''
+    <div style="border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; height: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px;">
+        <iframe 
+            width="100%" 
+            height="380" 
+            style="border:0;" 
+            loading="lazy" 
+            allowfullscreen 
+            referrerpolicy="no-referrer-when-downgrade" 
+            src="{google_maps_embed_url}">
+        </iframe>
+    </div>
+    ''', unsafe_allow_html=True)
 
 # 3. 데이터 로드 및 맵핑
 @st.cache_data
