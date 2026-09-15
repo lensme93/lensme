@@ -235,7 +235,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     else:
         grade_badge = '<span style="background-color:#ef4444; color:white; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:12px;">C 등급 (주의 입지)</span>'
 
-    # 전략 멘트
     advice = []
     advice.append(f"📍 <b>[상권 종합 결론]</b> 해당 지점은 <b>'{location_type}'</b> 특성을 갖고 있으며, 형태는 <b>'{store_type}'</b> 브랜드 매장입니다.")
     if "지하상가" in location_type or "초역세권" in location_type:
@@ -278,7 +277,7 @@ def render_location_consulting_ui(store_name, store_type, address):
                 st.session_state[session_key] = item
                 st.rerun()
 
-    # 상세 분석 카드 출력 (풍부한 내용을 위해 스타일 및 여백 보완)
+    # 상세 분석 카드 출력
     active_item = st.session_state[session_key]
     st.markdown(f"""
     <div style="background-color:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:20px; margin-top:12px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
