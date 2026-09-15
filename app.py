@@ -115,7 +115,6 @@ def get_store_metadata(store_name):
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
-    # 1. 지점별 고유 해시 기반 정밀 변동 편차 산출
     hash_seed = int(hashlib.md5((str(store_name) + str(address)).encode('utf-8')).hexdigest(), 16)
     v1 = (hash_seed % 7) - 3
     v2 = ((hash_seed >> 3) % 7) - 3
@@ -123,7 +122,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     v4 = ((hash_seed >> 9) % 5) - 2
     v5 = ((hash_seed >> 12) % 5) - 2
 
-    # 2. 세분화된 상권 분류 알고리즘
     if any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
         location_type = "지하상가 / 역사 통로 상권"
         base_scores = [24, 16, 21, 11, 10]
@@ -157,7 +155,6 @@ def render_location_consulting_ui(store_name, store_type, address):
         base_scores = [18, 21, 17, 13, 13]
         olens_case = "독점_일반"
 
-    # 3. 가맹점 형태별 가중치 보정
     type_adj = [0, 0, 0, 0, 0]
     if store_type == "단독샵":
         type_adj = [1, 0, 1, 0, -1]
@@ -166,7 +163,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     elif store_type in ["샵앤샵", "아이웨어샵"]:
         type_adj = [-2, 1, -1, 1, 2]
 
-    # 4. 개별 점수 계산
     s_flow = min(25, max(10, base_scores[0] + v1 + type_adj[0]))
     s_demand = min(25, max(10, base_scores[1] + v2 + type_adj[1]))
     s_traffic = min(20, max(8, base_scores[2] + v3 + type_adj[2]))
@@ -181,11 +177,10 @@ def render_location_consulting_ui(store_name, store_type, address):
         "입지 안정성": f"{s_stable} / 15점"
     }
 
-    # 5. 오렌즈 입지 비교 멘트
     if olens_case in ["과열_지하", "과열_대로", "경쟁_역세권"]:
         olens_comment = (
             f"• <b>상권 입지 비교:</b> 오렌즈가 대로변 로드샵 시인성을 선점한 구역이나, **{store_name}** 매장은 **{store_type}** 특유의 도보 밀착성 및 안락한 검안 동선을 확보했습니다.\n"
-            "• <b>핵심 대응 전략:</b> 단순 출혈 가격전을 피하고, 프리미엄 메이크업 렌즈 디스플레이존 구축 및 렌즈미 독점 고마진 PB(악마원데이/트루핏) 비주얼 마케팅으로 브랜드 매력도를 높이세요."
+            "• <b>핵심 대응 전략:</b> 소모성 가격전 대신, 프리미엄 메이크업 렌즈 디스플레이존 구축 및 렌즈미 독점 고마진 PB(악마원데이/트루핏) 비주얼 마케팅으로 브랜드 매력도를 높이세요."
         )
     elif olens_case == "경쟁_대학가":
         olens_comment = (
@@ -203,7 +198,6 @@ def render_location_consulting_ui(store_name, store_type, address):
             "• <b>핵심 대응 전략:</b> 프리미엄 실리콘 하이드로겔 렌즈 및 고기능성 렌즈 라인업 중심의 VMD 연출과 차별화된 멤버십 케어를 전면에 적용하세요."
         )
 
-    # 6. 초디테일 진단 및 실행 솔루션 텍스트
     details = {
         "유동성·접근성": f"""
         * **보행 동선 및 인프라 진단:** **{store_name}** 매장은 **{location_type}** 중심 보행축에 위치하며, 보행 유동객의 유효 접면률은 약 **{s_flow * 3.8:.1f}%** 수준으로 산출됩니다.
@@ -253,7 +247,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     else:
         grade_badge = '<span style="background-color:#ef4444; color:white; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:12px;">C 등급 (주의 입지)</span>'
 
-    # 가맹점 형태 & 주소 카드 노출
     st.markdown(f'''
     <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; border: 1px solid #e2e8f0;">
         <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
@@ -261,7 +254,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     ''', unsafe_allow_html=True)
 
-    # 상단 요약 카드
     st.markdown(f"""
     <div style="background-color:#ffffff; border-left: 5px solid #4f46e5; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -319,7 +311,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     """, unsafe_allow_html=True)
 
-# 3. 데이터 로드 및 맵핑 (📌 판매 파일 및 주문 파일 자동 감지 및 처리)
+# 3. 데이터 로드 및 맵핑
 @st.cache_data
 def load_data(uploaded_files):
     all_dfs = []
@@ -331,7 +323,6 @@ def load_data(uploaded_files):
             df.columns = df.columns.astype(str).str.replace(' ', '').str.replace('\n', '').str.strip()
             
             clean_cols = df.columns.tolist()
-            # 📌 주문/발주 파일 여부 자동 판단
             is_order_file = any(kw in file.name for kw in ['주문', '발주', '오더', '입고', '출고']) or ('본사할인율' in clean_cols and '고객명' not in clean_cols)
 
             df['전표번호_임시'] = get_safe_column(df, ['전표번호', '영수증번호', '주문번호', '관리번호'])
@@ -366,7 +357,6 @@ def load_data(uploaded_files):
             def to_num(series): 
                 return pd.to_numeric(series.astype(str).str.replace(',', ''), errors='coerce').fillna(0)
             
-            # 📌 주문 파일 VS 판매 파일에 따른 수량/금액 필드 매핑 분기
             if is_order_file:
                 df['금액'] = 0.0
                 df['합계'] = 0.0
@@ -650,11 +640,10 @@ else:
                     st.markdown(f"<h3 style='color: #0f172a; text-align: center; border-bottom: 3px solid #4f46e5; padding-bottom: 10px; margin-bottom: 20px;'>{view['title']}</h3>", unsafe_allow_html=True)
                     s_type, s_addr = get_store_metadata(view['store_name'])
                     
-                    # 정밀 상권 평가 리포트
                     render_location_consulting_ui(view['store_name'], s_type, s_addr)
 
     # ==========================================
-    # [탭 2] 매출/주문데이터
+    # [탭 2] 매출/주문데이터 (📌 겹침 현상 원천 차단 + GAP 내림차순 자동 정렬 표)
     # ==========================================
     with tab_sales:
         if not views:
@@ -800,9 +789,9 @@ else:
                     if show_orders: draw_view_chart("주문액", global_max_orders)
                     if show_margin: draw_view_chart("마진율", global_max_margin)
 
-                    # 📌 ⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 표
+                    # 📌 [요청 반영] ⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 표 (글자 겹침 해결 & 수량 GAP 내림차순 기본 정렬)
                     st.markdown("<br><h4 style='color:#dc2626;'>⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 (자점매입/POS 미입력 의심)</h4>", unsafe_allow_html=True)
-                    st.markdown("<p style='font-size:12.5px; color:#64748b;'>주문 수량(본사 출고) 대비 판매 수량(POS 입력) 간 차이(GAP)를 비교하여 이상 거래를 자동 판별합니다.</p>", unsafe_allow_html=True)
+                    st.markdown("<p style='font-size:12.5px; color:#64748b;'>주문 수량(본사 출고) 대비 판매 수량(POS 입력) 간 차이(GAP)를 수량 GAP 내림차순으로 자동 정렬하여 비교합니다.</p>", unsafe_allow_html=True)
 
                     gap_base_df = v_df.groupby(['Custom_Channel', '상품명2']).agg(
                         판매수량=('합계', 'sum'),
@@ -811,16 +800,18 @@ else:
                         주문액=('주문액', 'sum')
                     ).reset_index()
 
+                    # 수량 갭(GAP) 계산: 판매수량 - 주문수량
                     gap_base_df['수량_GAP(개)'] = gap_base_df['판매수량'] - gap_base_df['주문수량']
                     gap_base_df['금액_GAP(원)'] = gap_base_df['매출액'] - gap_base_df['주문액']
 
+                    # 📌 텍스트 겹침 방지용 정제된 간결한 라벨 지정
                     def detect_anomaly(row):
                         if row['수량_GAP(개)'] > 0 and row['주문수량'] == 0:
-                            return '🔴 무체 사급/자점매입 강함 (본사 주문 0건)'
+                            return '🔴 무체사급 (주문0건)'
                         elif row['수량_GAP(개)'] > 0:
-                            return '🟠 자점매입/사급 의심 (판매>주문)'
+                            return '🟠 자점매입 의심'
                         elif row['수량_GAP(개)'] < 0:
-                            return '🔵 POS 판매 미입력/재고 누적 의심 (주문>판매)'
+                            return '🔵 POS 미입력/재고누적'
                         else:
                             return '✅ 정상 (일치)'
 
@@ -839,21 +830,47 @@ else:
                     elif filter_anomaly_option == '📦 POS 미입력/재고 누적 품목만 보기':
                         filtered_gap_df = filtered_gap_df[filtered_gap_df['수량_GAP(개)'] < 0]
 
+                    # 📌 [핵심] 수량 GAP(개) 내림차순 정렬 적용
                     filtered_gap_df = filtered_gap_df.sort_values(by=['수량_GAP(개)'], ascending=False)
                     
                     display_gap_df = filtered_gap_df.copy()
-                    display_gap_df['매출액(원)'] = display_gap_df['매출액'].apply(lambda x: f"{int(x):,}")
-                    display_gap_df['주문액(원)'] = display_gap_df['주문액'].apply(lambda x: f"{int(x):,}")
-                    display_gap_df['금액_GAP(원)'] = display_gap_df['금액_GAP(원)'].apply(lambda x: f"{int(x):,}")
-                    display_gap_df = display_gap_df.drop(columns=['매출액', '주문액'])
                     
-                    display_gap_df.columns = ['카테고리', '품목명', '판매수량(개)', '주문수량(개)', '수량 GAP(개)', '금액 GAP(원)', '진단 유형', '매출액(원)', '주문액(원)']
+                    # 컬럼 정돈 및 이름 변경
+                    display_gap_df = display_gap_df.rename(columns={
+                        'Custom_Channel': '카테고리',
+                        '상품명2': '품목명',
+                        '진단_유형': '진단 유형',
+                        '판매수량': '판매수량(개)',
+                        '주문수량': '주문수량(개)',
+                        '수량_GAP(개)': '수량 GAP(개)',
+                        '매출액': '매출액(원)',
+                        '주문액': '주문액(원)',
+                        '금액_GAP(원)': '금액 GAP(원)'
+                    })
+                    
                     display_gap_df = display_gap_df[['카테고리', '품목명', '진단 유형', '판매수량(개)', '주문수량(개)', '수량 GAP(개)', '매출액(원)', '주문액(원)', '금액 GAP(원)']]
 
                     if display_gap_df.empty:
                         st.info("💡 해당 조건에 해당되는 이상 거래 감지 품목이 없습니다.")
                     else:
-                        st.dataframe(display_gap_df, use_container_width=True, height=280)
+                        # 📌 컬럼 너비 지정 및 숫자 포맷팅으로 텍스트 겹침 완전 방지
+                        st.dataframe(
+                            display_gap_df,
+                            column_config={
+                                "카테고리": st.column_config.TextColumn("카테고리", width="small"),
+                                "품목명": st.column_config.TextColumn("품목명", width="medium"),
+                                "진단 유형": st.column_config.TextColumn("진단 유형", width="medium"),
+                                "판매수량(개)": st.column_config.NumberColumn("판매수량(개)", format="%d"),
+                                "주문수량(개)": st.column_config.NumberColumn("주문수량(개)", format="%d"),
+                                "수량 GAP(개)": st.column_config.NumberColumn("수량 GAP(개)", format="%d"),
+                                "매출액(원)": st.column_config.NumberColumn("매출액(원)", format="%d 원"),
+                                "주문액(원)": st.column_config.NumberColumn("주문액(원)", format="%d 원"),
+                                "금액 GAP(원)": st.column_config.NumberColumn("금액 GAP(원)", format="%d 원"),
+                            },
+                            use_container_width=True, 
+                            height=320,
+                            hide_index=True
+                        )
 
                     st.markdown("<br>", unsafe_allow_html=True)
 
