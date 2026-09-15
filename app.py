@@ -47,13 +47,39 @@ CATEGORY_COLORS = {
     '근시용': '#3b82f6', '난시용': '#ef4444', '해당없음': '#94a3b8'
 }
 
-# 🔥 [핵심 유지] 3단계 이중 안전장치를 탑재한 열(Column) 추출 함수
+# 📌 가맹점 주소 데이터 로드 함수 (렌즈미 글라스미 가맹점 리스트_250214.xlsx 활용)
+@st.cache_data
+def load_store_info():
+    try:
+        # 첫 번째 시트(지역담당자 현황)에서 주소 매핑
+        df_list = pd.read_excel("렌즈미 글라스미 가맹점 리스트_250214.xlsx", sheet_name=0)
+        store_map = {}
+        for _, row in df_list.iterrows():
+            addr = row['주소'] if pd.notna(row['주소']) else "주소 정보 없음"
+            if pd.notna(row['가맹점명.1']):
+                store_map[str(row['가맹점명.1']).strip()] = addr
+            if pd.notna(row['가맹점명']):
+                store_map[str(row['가맹점명']).strip()] = addr
+        return store_map
+    except Exception as e:
+        st.sidebar.warning("가맹점 리스트 엑셀 파일을 찾을 수 없어 주소를 불러오지 못했습니다.")
+        return {}
+
+store_map = load_store_info()
+
+def get_address(store_name):
+    # 정확히 일치하는 경우
+    if store_name in store_map:
+        return store_map[store_name]
+    # 부분 일치하는 경우 ('렌즈미 OO점' 등)
+    for k, v in store_map.items():
+        if k in store_name or store_name in k:
+            return v
+    return "주소 정보 없음"
+
+
+# 🔥 3단계 이중 안전장치를 탑재한 열(Column) 추출 함수
 def get_safe_column(df, possible_names, fallback_idx=None):
-    """
-    1. 엑셀 제목에서 띄어쓰기 등 찌꺼기를 모두 제거하고
-    2. possible_names에 있는 진짜 이름이 있는지 먼저 찾는다!
-    3. 이름이 도저히 없거나 깨졌으면 fallback_idx (순서)로 강제로 가져온다.
-    """
     for name in possible_names:
         if name in df.columns:
             return df[name]
@@ -61,7 +87,7 @@ def get_safe_column(df, possible_names, fallback_idx=None):
         return df.iloc[:, fallback_idx]
     return pd.Series([''] * len(df))
 
-# 3. 데이터 로드 및 맵핑 (직접 업로드 방식으로 원복)
+# 3. 데이터 로드 및 맵핑 (직접 업로드 방식)
 @st.cache_data
 def load_data(uploaded_files):
     all_dfs = []
@@ -71,10 +97,8 @@ def load_data(uploaded_files):
             df = pd.read_excel(file)
             df['파일명'] = file.name
             
-            # [안전장치 1] 모든 열(제목)의 띄어쓰기와 불순물을 싹 제거합니다.
             df.columns = df.columns.astype(str).str.replace(' ', '').str.replace('\n', '').str.strip()
             
-            # [안전장치 2] 핵심 데이터 열을 이름으로 먼저 찾고, 없으면 위치 번호로 찾습니다.
             df['전표번호_임시'] = get_safe_column(df, ['전표번호', '영수증번호', '주문번호'])
             df['일자_임시'] = get_safe_column(df, ['방문일자', '일자', '날짜', '결제일', '판매일'], 0)
             df['상품명_임시'] = get_safe_column(df, ['상품명2', '상품명', '제품명'])
@@ -85,14 +109,12 @@ def load_data(uploaded_files):
             df['고객명_임시'] = get_safe_column(df, ['고객명', '회원명', '이름', '수령고객명'], 28)
             df['전화번호_임시'] = get_safe_column(df, ['전화번호', '핸드폰', '연락처', '휴대폰'], 31)
             
-            # 부가 그룹 정보
             df['품목그룹1_임시'] = get_safe_column(df, ['품목그룹1', '그룹1'])
             df['품목그룹3_임시'] = get_safe_column(df, ['품목그룹3', '그룹3'])
             df['품목그룹4_임시'] = get_safe_column(df, ['품목그룹4', '그룹4'])
             df['생산업체_임시'] = get_safe_column(df, ['생산업체', '제조사', '브랜드'])
             df['거래처_임시'] = get_safe_column(df, ['거래처(부서)', '거래처', '매장명', '지점명'])
 
-            # 전표번호 없는 불필요한 줄(합계 줄 등) 제거
             df = df[df['전표번호_임시'] != '']
             df = df.dropna(subset=['전표번호_임시'])
             df = df[~df['일자_임시'].astype(str).str.contains('합', na=False)]
@@ -120,14 +142,12 @@ def load_data(uploaded_files):
             df['거래처(부서)'] = df['거래처_임시'].fillna('미지정')
             df['전표번호'] = df['전표번호_임시']
             
-            # 날짜 및 연/월 추출
             df['방문일자'] = df['일자_임시'].astype(str).str[:10]
             df['날짜_변환'] = pd.to_datetime(df['방문일자'], errors='coerce')
             df['연도'] = df['날짜_변환'].dt.year.fillna(0).astype(int).astype(str)
             df['연도'] = df['연도'].replace('0', '연도미상')
             df['월'] = df['날짜_변환'].dt.month
             
-            # 고객 정보 정제
             df['고객명_정제'] = df['고객명_임시'].fillna('').astype(str).str.strip().replace('nan', '')
             df['전화번호_정제'] = df['전화번호_임시'].fillna('').astype(str).str.strip().replace('nan', '')
 
@@ -201,7 +221,7 @@ def load_data(uploaded_files):
 
 
 # ==========================================
-# 🚀 사이드바 및 필터 로직 (업로드 방식 복구)
+# 🚀 사이드바 및 필터 로직
 # ==========================================
 st.sidebar.title("📁 데이터 업로드")
 uploaded_files = st.sidebar.file_uploader("가맹점 엑셀 파일을 모두 드래그하여 올려주세요", type=["xlsx", "xls"], accept_multiple_files=True)
@@ -251,9 +271,10 @@ else:
         
         y_text = ", ".join(selected_years) if selected_years else "전체 연도"
         m_text = ", ".join(selected_months) if selected_months else "전체 기간"
+        address = get_address(selected_store)
         header_subtitle = f"단일 매장 조회 | 대상 지점: {selected_store} | {y_text} ({m_text})"
         
-        views.append({"title": f"🏪 {selected_store} 실적", "df": time_filtered_df})
+        views.append({"title": f"🏪 {selected_store} 실적<br><span style='font-size:16px; color:#64748b;'>📍 {address}</span>", "df": time_filtered_df})
 
     # 2. 단일 매장 기간 비교
     elif compare_mode == "단일 매장 기간 비교":
@@ -270,6 +291,8 @@ else:
         p1_ints = [int(m.replace('월', '')) for m in period1]
         p2_ints = [int(m.replace('월', '')) for m in period2]
         store_df = base_df[base_df['거래처(부서)'] == selected_store]
+        
+        address = get_address(selected_store)
         header_subtitle = f"단일 매장 기간 비교 모드 | 대상 지점: {selected_store}"
         
         v1_df, v2_df = store_df.copy(), store_df.copy()
@@ -287,8 +310,8 @@ else:
         t2_y = ",".join(p2_years) if p2_years else "연도 미선택"
         t2_m = f"({','.join(period2)})" if period2 else ""
         
-        views.append({"title": f"[{selected_store}] {t1_y} {t1_m}", "df": v1_df})
-        views.append({"title": f"[{selected_store}] {t2_y} {t2_m}", "df": v2_df})
+        views.append({"title": f"[{selected_store}] {t1_y} {t1_m}<br><span style='font-size:16px; color:#64748b;'>📍 {address}</span>", "df": v1_df})
+        views.append({"title": f"[{selected_store}] {t2_y} {t2_m}<br><span style='font-size:16px; color:#64748b;'>📍 {address}</span>", "df": v2_df})
 
     # 3. 2개 이상 매장 비교
     else:
@@ -307,7 +330,8 @@ else:
         header_subtitle = f"2개이상 매장 비교 모드 | 대상: {len(selected_stores)}개 지점 | {y_text} ({m_text})"
         
         for store in selected_stores:
-            views.append({"title": f"🏪 {store} 실적", "df": time_filtered_df[time_filtered_df['거래처(부서)'] == store]})
+            address = get_address(store)
+            views.append({"title": f"🏪 {store} 실적<br><span style='font-size:16px; color:#64748b;'>📍 {address}</span>", "df": time_filtered_df[time_filtered_df['거래처(부서)'] == store]})
 
     st.sidebar.markdown("---")
     
