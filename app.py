@@ -148,7 +148,7 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 상권 분석 UI 렌더링 함수 (📌 세부 평가 아래 구글맵 지도 확대 배치 적용)
+# 🧠 상권 분석 UI 렌더링 함수
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
@@ -351,11 +351,14 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     """, unsafe_allow_html=True)
 
-    # 📌 [요청 반영] 세부 정밀 평가 내용 및 상권 결론 아래쪽에 구글맵 지도 확대 배치 (버튼 삭제)
-    encoded_addr = urllib.parse.quote(addr_str)
-    google_maps_embed_url = f"https://www.google.com/maps?q={encoded_addr}&output=embed"
+    # 📌 [요청 반영] 1순위: '렌즈미 {지점명} {주소}' 매장 핀 타깃 검색 -> 실패 시 주소 검색
+    clean_store = re.sub(r'\(.*?\)', '', str(store_name)).strip()
+    search_query = f"렌즈미 {clean_store} {address}".strip()
+    
+    encoded_query = urllib.parse.quote(search_query)
+    google_maps_embed_url = f"https://www.google.com/maps?q={encoded_query}&output=embed"
 
-    st.markdown(f"<div style='font-size:14.5px; font-weight:700; color:#0f172a; margin-bottom:8px;'>🗺️ 매장 위치 정밀 입지 지도 ({address})</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-size:14.5px; font-weight:700; color:#0f172a; margin-bottom:8px;'>🗺️ 매장 위치 정밀 입지 지도 (렌즈미 {clean_store})</div>", unsafe_allow_html=True)
     st.markdown(f'''
     <div style="border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; height: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px;">
         <iframe 
