@@ -109,11 +109,19 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 매장별 동적 점수 생성 및 디테일 상권 컨설팅 UI 함수
+# 🧠 상권 분석 UI 렌더링 함수 (가맹점 형태 & 매장 주소를 상단 카드에 통합)
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
-    # 1. 지점별 고유 해시 기반 변동 편차 산출 (매장마다 점수가 다르게 나오도록 고유값 생성)
+    # 📌 가맹점 형태 & 매장 주소 카드 (상단 배치)
+    st.markdown(f'''
+    <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; border: 1px solid #e2e8f0;">
+        <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
+        <b>📍 매장 주소:</b> {address}
+    </div>
+    ''', unsafe_allow_html=True)
+    
+    # 1. 지점별 고유 해시 기반 변동 편차 산출 (매장별 점수 다변화)
     hash_seed = int(hashlib.md5((str(store_name) + str(address)).encode('utf-8')).hexdigest(), 16)
     var1 = (hash_seed % 5) - 2      # -2 ~ +2
     var2 = ((hash_seed >> 2) % 5) - 2
@@ -135,16 +143,16 @@ def render_location_consulting_ui(store_name, store_type, address):
         location_type = "주거 및 행정 융합 상권"
         base_scores = [17, 22, 17, 13, 14]
 
-    # 3. 매장 형태별(단독샵, 글라스미, 샵인샵 등) 가중치 보정
+    # 3. 매장 형태별 가중치 보정
     type_adj = [0, 0, 0, 0, 0]
     if store_type == "단독샵":
-        type_adj = [1, 0, 1, 0, 0]  # 집객 및 독립 상권 가점
+        type_adj = [1, 0, 1, 0, 0]
     elif store_type == "글라스미":
-        type_adj = [0, 1, 0, 1, 1]  # 마진 및 배후 수요 가점
+        type_adj = [0, 1, 0, 1, 1]
     elif store_type in ["샵앤샵", "아이웨어샵"]:
-        type_adj = [0, 1, -1, 0, 1] # 접근성 및 고정비 안정 가점
+        type_adj = [0, 1, -1, 0, 1]
 
-    # 4. 최종 5대 지표별 개별 점수 확정 (최대 배점 제한)
+    # 4. 최종 점수 확정
     s_flow = min(25, max(12, base_scores[0] + var1 + type_adj[0]))
     s_demand = min(25, max(12, base_scores[1] + var2 + type_adj[1]))
     s_traffic = min(20, max(10, base_scores[2] + var3 + type_adj[2]))
@@ -172,7 +180,7 @@ def render_location_consulting_ui(store_name, store_type, address):
             "• <b>핵심 대응 전략:</b> 1만~2만원대 가성비 PB 라인업 및 SNS 프로모션을 적극 활용하여 지역 단골 고객층을 빠르게 고착화하세요."
         )
 
-    # 6. 점수대별 맞춤형 세부 정밀 평가 내용 다이내믹 생성
+    # 6. 초디테일 세부 정밀 평가 내용
     details = {
         "유동성·접근성": f"""
         * **보행 동선 및 흐름:** {store_name} 매장은 {location_type} 특성에 따라 보행 유동인구 접면률이 약 **{s_flow*3.8:.1f}%** 수준으로 산출되었습니다.
@@ -210,7 +218,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     else:
         grade_badge = '<span style="background-color:#ef4444; color:white; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:12px;">C 등급 (주의 입지)</span>'
 
-    # 상단 요약 카드
+    # 상단 정밀 평가 요약 카드
     st.markdown(f"""
     <div style="background-color:#ffffff; border-left: 5px solid #4f46e5; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -419,7 +427,7 @@ def load_data(uploaded_files):
             return '난시용'
         return '근시용'
 
-    combined_df['Vision_Type'] = combined_df.apply(map_vision_type, axis=1)
+    combined_df['Vision_Type'] = combined_dir = combined_df.apply(map_vision_type, axis=1)
     
     return combined_df, "고객명_정제", "전화번호_정제"
 
@@ -569,7 +577,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # 📌 4대 탭 구조
+    # 📌 4대 탭 구조: 맨 좌측에 '상권분석컨설팅' 위치
     tab_consulting, tab_sales, tab_customer, tab_renewal = st.tabs(["🗺️ 상권분석컨설팅", "📊 매출데이터", "👥 고객데이터", "✨ 리뉴얼"])
 
     # ==========================================
