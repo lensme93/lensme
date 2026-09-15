@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. 커스텀 CSS (디자인 및 Expander 깨짐 방지 레이아웃)
+# 2. 커스텀 CSS (UI 깨짐 방지 및 점수 박스 전용 디자인)
 st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -28,9 +28,10 @@ st.markdown("""
     .metric-label { font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
     .metric-value { font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px;}
     
-    /* Expander UI 스타일 정돈 */
-    .stExpander { border: 1px solid #e2e8f0 !important; border-radius: 8px !important; background-color: #ffffff !important; margin-bottom: 8px !important; }
-    .stExpander summary p { font-weight: 700 !important; font-size: 13px !important; color: #0f172a !important; }
+    /* Expander UI 글자 겹침 방지 커스텀 CSS */
+    .stExpander { border: 1px solid #cbd5e1 !important; border-radius: 10px !important; background-color: #ffffff !important; margin-bottom: 12px !important; }
+    .stExpander summary { padding: 10px 14px !important; }
+    .stExpander summary p { font-weight: 700 !important; font-size: 14px !important; color: #1e293b !important; white-space: normal !important; word-break: keep-all !important; }
 
     .border-indigo { border-top: 4px solid #4f46e5; }
     .border-emerald { border-top: 4px solid #10b981; }
@@ -112,96 +113,102 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 상권 분석 UI 렌더링 함수 (UI 깨짐 완벽 보완)
+# 🧠 상권 분석 UI 렌더링 함수 (글자 겹침 완벽 해결 - 2열 카드 및 에이리어 확장)
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
     if any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
         location_type = "지하상가/유동인구형 상권"
-        scores = {"유동성·접근성": 24, "배후 수요성": 18, "집객력·활성화": 22, "경쟁성·희소성": 11, "입지 안정성": 11}
+        scores = {"1. 유동성·접근성": "24 / 25점", "2. 배후 수요성": "18 / 25점", "3. 집객력·활성화": "22 / 20점", "4. 경쟁성·희소성": "11 / 15점", "5. 입지 안정성": "11 / 15점"}
         details = {
-            "유동성·접근성": "<b>[24점 / 25점]</b> 지하철 역내/지하상가 동선 연결로 보행 유동성이 매우 뛰어남 (단, 지하 구조상 전면 가시성은 제한).",
-            "배후 수요성": "<b>[18점 / 25점]</b> 이동 유동인구는 풍부하나, 고정 아파트 배후 단지 세대수가 다소 부족함.",
-            "집객력·활성화": "<b>[22점 / 20점]</b> 출퇴근 동선 특성상 결제 전환률이 높으며, 트렌디 PB/컬러렌즈 단품 소비가 매우 활발함.",
-            "경쟁성·희소성": "<b>[11점 / 15점]</b> 지하상가 구역 내 동종 브랜드 밀집도가 높아 가격 프로모션 경쟁 압박 존재.",
-            "입지 안정성": "<b>[11점 / 15점]</b> 지하상가 운영 주체 재계약 주기 및 높은 월 임대료 비중이 고정비 리스크로 작용 가능."
+            "1. 유동성·접근성": "지하철 역내 및 지하상가 메인 동선과 직접 연결되어 출퇴근 보행 유동인구 수용력이 최고 수준입니다. (단, 지하 특성상 지상 파사드 가시성은 제한됩니다.)",
+            "2. 배후 수요성": "이동 유동인구의 절대량은 대규모이나, 반경 500m 내 거주 아파트 단지 등 고정 배후 세대수가 다소 적습니다.",
+            "3. 집객력·활성화": "이동 목적 고객의 결제 전환율이 높고, 트렌디한 PB/컬러렌즈 단품 위주의 구매 활력도가 매우 뛰어납니다.",
+            "4. 경쟁성·희소성": "지하상가 구역 내 동종 안경원 및 렌즈 전문점 밀집도가 높아 가격 프로모션 경쟁이 상시 존재합니다.",
+            "5. 입지 안정성": "역사/지하상가 시설 관리 주체와의 재계약 주기 및 상대적으로 높은 임대료 비중이 고정비 리스크로 작용할 수 있습니다."
         }
     elif any(k in addr_str for k in ['역', '로', '대로', '광장']) and any(k in store_name for k in ['역', '광장']):
         location_type = "초역세권/유동 중심 상권"
-        scores = {"유동성·접근성": 25, "배후 수요성": 21, "집객력·활성화": 23, "경쟁성·희소성": 10, "입지 안정성": 13}
+        scores = {"1. 유동성·접근성": "25 / 25점", "2. 배후 수요성": "21 / 25점", "3. 집객력·활성화": "23 / 20점", "4. 경쟁성·희소성": "10 / 15점", "5. 입지 안정성": "13 / 15점"}
         details = {
-            "유동성·접근성": "<b>[25점 / 25점]</b> 메인 대로변 위치, 지하철/버스정류장 접면성 및 간판 노출 가시성 최상위.",
-            "배후 수요성": "<b>[21점 / 25점]</b> 외부 유입 인구와 인근 오피스/상업 시설 수요가 유입되어 폭넓은 고객층 확보.",
-            "집객력·활성화": "<b>[23점 / 20점]</b> 주중/주말 매출 기복이 적고 발자국(Foot Traffic) 대비 실질 결제 전환률 최상급.",
-            "경쟁성·희소성": "<b>[10점 / 15점]</b> 반경 300m 내 경쟁 안경원 밀집도가 높아 지속적인 차별화 프로모션 필요.",
-            "입지 안정성": "<b>[13점 / 15점]</b> 집객력은 보장되나 높은 매장 임대료에 따른 손익분기점(BEP) 관리 필요."
+            "1. 유동성·접근성": "메인 대로변에 위치해 대중교통 접면성과 전면 간판 가시성이 최상위 수준입니다.",
+            "2. 배후 수요성": "외부 유입 인구와 인근 오피스/상업 시설 직장인 수요가 융합되어 폭넓은 연령대의 소비층을 확보합니다.",
+            "3. 집객력·활성화": "주중과 주말 매출 기복이 적고 발자국(Foot Traffic) 대비 실질 결제 전환률이 최상급입니다.",
+            "4. 경쟁성·희소성": "핵심 역세권 특성상 반경 300m 내 경쟁 매장 밀집도가 높아 지속적인 차별화 마케팅이 요구됩니다.",
+            "5. 입지 안정성": "유동 유입이 확고히 보장되는 입지이나 높은 매장 임대료에 따른 손익분기점(BEP) 철저 관리가 핵심입니다."
         }
     elif any(k in addr_str for k in ['대학', '캠퍼스']) or any(k in store_name for k in ['고대', '외대', '대', '교']):
         location_type = "대학가/1020 영타겟 상권"
-        scores = {"유동성·접근성": 22, "배후 수요성": 22, "집객력·활성화": 20, "경쟁성·희소성": 12, "입지 안정성": 12}
+        scores = {"1. 유동성·접근성": "22 / 25점", "2. 배후 수요성": "22 / 25점", "3. 집객력·활성화": "20 / 20점", "4. 경쟁성·희소성": "12 / 15점", "5. 입지 안정성": "12 / 15점"}
         details = {
-            "유동성·접근성": "<b>[22점 / 25점]</b> 등하교 주요 로드샵 동선에 위치하여 대학생 보행 접근성 우수.",
-            "배후 수요성": "<b>[22점 / 25점]</b> 1020 영타겟 밀도가 높으며, 미용/컬러렌즈 정기 구매 수요가 매우 두터움.",
-            "집객력·활성화": "<b>[20점 / 20점]</b> 학기 중 매출 활성도는 폭발적이나, 방학 시즌 유동 감소 대비책 필요.",
-            "경쟁성·희소성": "<b>[12점 / 15점]</b> 유행에 민감한 시장으로 SNS 마케팅 및 인기 PB 렌즈 선점이 핵심.",
-            "입지 안정성": "<b>[12점 / 15점]</b> 영타겟 트렌드 변화가 빨라 주기적인 디스플레이 리뉴얼 필수."
+            "1. 유동성·접근성": "등하교 및 대학가 메인 로드샵 동선에 입지하여 대학생/청년층 보행 접근성이 우수합니다.",
+            "2. 배후 수요성": "1020 영타겟 및 자취생 밀도가 압도적이며, 미용/컬러렌즈 정기 구매 수요가 두터습니다.",
+            "3. 집객력·활성화": "학기 중 매출 활력도는 폭발적이나, 여름/겨울 방학 시즌(연 4개월) 유동 감소 대비책이 필요합니다.",
+            "4. 경쟁성·희소성": "트렌드 변화에 민감한 상권으로 SNS 연계 마케팅과 인기 PB 렌즈 선점이 매출을 좌우합니다.",
+            "5. 입지 안정성": "영타겟 유행 주기가 빨라 주기적인 VMD(진열) 리뉴얼과 신상품 라인업 강화가 필수적입니다."
         }
     else:
         location_type = "주거 및 행정 융합 상권"
-        scores = {"유동성·접근성": 18, "배후 수요성": 23, "집객력·활성화": 18, "경쟁성·희소성": 13, "입지 안정성": 14}
+        scores = {"1. 유동성·접근성": "18 / 25점", "2. 배후 수요성": "23 / 25점", "3. 집객력·활성화": "18 / 20점", "4. 경쟁성·희소성": "13 / 15점", "5. 입지 안정성": "14 / 15점"}
         details = {
-            "유동성·접근성": "<b>[18점 / 25점]</b> 정체형 보행 유동 위주로, 차량 및 도보 접근성이 무난함.",
-            "배후 수요성": "<b>[23점 / 25점]</b> 대단지 아파트 밀집으로 거주민 중심 고정 단골 고객층 배후가 안정적임.",
-            "집객력·활성화": "<b>[18점 / 20점]</b> 정기적 목적 방문 비중이 높으며, 투명/난시용 고단가 제품 판매에 유리.",
-            "경쟁성·희소성": "<b>[13점 / 15점]</b> 동네 밀착형 상권으로 대형 경쟁점 유입 가능성이 낮아 독점 용이.",
-            "입지 안정성": "<b>[14점 / 15점]</b> 경기 변동 영향이 적은 배후지로 장기 운영 및 매출 예측이 안정적."
+            "1. 유동성·접근성": "빠른 통행성 유동인구보다는 정체형 보행 유동 위주로, 차량 및 도보 접근성이 무난합니다.",
+            "2. 배후 수요성": "대단지 아파트 및 주거지가 밀집해 있어 거주민 중심 고정 단골 고객층 배후가 안정적입니다.",
+            "3. 집객력·활성화": "정기적 목적 방문 비중이 높으며, 원데이 투명렌즈 및 난시/프리미엄 고단가 제품 판매에 유리합니다.",
+            "4. 경쟁성·희소성": "동네 밀착형 상권으로 대형 경쟁점 추가 유입 가능성이 적어 상권 내 점유율 유지가 쉽습니다.",
+            "5. 입지 안정성": "경기 변동 영향이 적은 배후지로 장기적이고 안정적인 점포 운영이 가능합니다."
         }
 
-    total_score = sum(scores.values())
+    # 점수 숫자만 추출하여 합산
+    total_score = sum([int(v.split('/')[0].strip()) for v in scores.values()])
     
     if total_score >= 90:
-        grade_badge = '<span style="background-color:#10b981; color:white; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">A+ 등급</span>'
+        grade_badge = '<span style="background-color:#10b981; color:white; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:12px;">A+ 등급 (최상급 입지)</span>'
     elif total_score >= 80:
-        grade_badge = '<span style="background-color:#3b82f6; color:white; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">A 등급</span>'
+        grade_badge = '<span style="background-color:#3b82f6; color:white; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:12px;">A 등급 (우수 입지)</span>'
     elif total_score >= 70:
-        grade_badge = '<span style="background-color:#f59e0b; color:white; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">B 등급</span>'
+        grade_badge = '<span style="background-color:#f59e0b; color:white; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:12px;">B 등급 (보통 입지)</span>'
     else:
-        grade_badge = '<span style="background-color:#ef4444; color:white; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px;">C 등급</span>'
+        grade_badge = '<span style="background-color:#ef4444; color:white; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:12px;">C 등급 (주의 입지)</span>'
 
     advice = []
-    advice.append(f"📍 <b>[상권 분석 결과]</b> 해당 지점은 <b>'{location_type}'</b> 환경이며, 형태는 <b>'{store_type}'</b>에 해당합니다.")
+    advice.append(f"📍 <b>[상권 분석 결론]</b> 해당 지점은 <b>'{location_type}'</b> 환경이며, 형태는 <b>'{store_type}'</b> 매장입니다.")
     if "지하상가" in location_type or "초역세권" in location_type:
-        advice.append("💡 <b>[매출 증대 전략]</b> 유동 인구가 풍부하고 즉흥 구매 성향이 높습니다. <b>트렌디 PB/컬러렌즈 픽업 매대</b>를 전면에 배치하세요.")
+        advice.append("💡 <b>[매출 증대 전략]</b> 유동 인구가 많고 즉흥 구매 성향이 높습니다. <b>트렌디 PB/컬러렌즈 픽업 매대</b>를 전면에 배치하세요.")
     elif "대학가" in location_type:
         advice.append("💡 <b>[매출 증대 전략]</b> 1020 세대 트렌드 민감도가 높습니다. <b>1만~2만원대 트렌디 컬러렌즈</b> 중심 연계 마케팅이 유리합니다.")
     else:
         advice.append("💡 <b>[매출 증대 전략]</b> 정기 재방문 단골 비중이 높습니다. <b>원데이 투명렌즈 및 난시/프리미엄 렌즈 세트 판매</b>를 강화하세요.")
 
-    # UI 출력
+    # 대시보드 헤더 카드
     st.markdown(f"""
-    <div style="background-color:#ffffff; border-left: 5px solid #4f46e5; border-radius:12px; padding:16px; margin-bottom:12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+    <div style="background-color:#ffffff; border-left: 5px solid #4f46e5; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:15px; font-weight:700; color:#0f172a;">📊 입지 상권분석 정밀 평가 리포트</span>
-            <div>평가 점수: <b style="font-size:17px; color:#4f46e5;">{total_score}점</b> / 100점 &nbsp;|&nbsp; {grade_badge}</div>
+            <span style="font-size:16px; font-weight:700; color:#0f172a;">📊 입지 상권분석 정밀 평가 리포트</span>
+            <div>평가 점수: <b style="font-size:18px; color:#4f46e5;">{total_score}점</b> / 100점 &nbsp;|&nbsp; {grade_badge}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<p style='font-size:12px; font-weight:bold; color:#64748b; margin-bottom:6px;'>👇 아래 항목을 클릭하면 세부 평가 사유를 볼 수 있습니다.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:13px; font-weight:bold; color:#475569; margin-bottom:10px;'>🔍 5대 지표별 세부 평가 사유 (클릭하여 펼쳐보기)</p>", unsafe_allow_html=True)
     
-    # 깨짐 방지 처리된 5대 지표 Expander
-    score_cols = st.columns(5)
+    # 📌 [핵심 개선] 2열(2-Column) 배치로 박스 폭을 넓혀 글자 겹침 현상을 완전 제거
+    col1, col2 = st.columns(2)
     items = list(scores.keys())
     
-    for i, item in enumerate(items):
-        with score_cols[i]:
-            # 깔끔한 단행 타이틀 지정 (Markdown 서식 제거로 CSS 깨짐 방지)
-            expander_title = f"{item} ({scores[item]}점)"
+    for idx, item in enumerate(items):
+        target_col = col1 if idx % 2 == 0 else col2
+        with target_col:
+            expander_title = f"{item} ── [{scores[item]}]"
             with st.expander(expander_title):
-                st.markdown(f"<div style='font-size:12px; color:#334155; line-height:1.5; padding: 4px 0;'>{details[item]}</div>", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div style='font-size:13px; color:#334155; line-height:1.6; background-color:#f8fafc; padding:12px; border-radius:6px; border:1px solid #e2e8f0;'>
+                    📌 <b>세부 분석 의견:</b><br>{details[item]}
+                </div>
+                """, unsafe_allow_html=True)
 
+    # 하단 컨설팅 종합 가이드
     st.markdown(f"""
-    <div style="font-size:13px; color:#334155; line-height:1.6; background-color:#f0fdf4; padding:12px; border-radius:8px; border:1px solid #bbf7d0; margin-top:8px; margin-bottom:24px;">
+    <div style="font-size:13.5px; color:#1e293b; line-height:1.6; background-color:#f0fdf4; padding:14px; border-radius:8px; border:1px solid #bbf7d0; margin-top:10px; margin-bottom:24px;">
         {"<br>".join(advice)}
     </div>
     """, unsafe_allow_html=True)
@@ -566,7 +573,7 @@ else:
                     </div>
                     ''', unsafe_allow_html=True)
                     
-                    # 💡 UI 깨짐 보완 적용된 상권 정밀 평가 호출
+                    # 💡 UI 글자 겹침 해결 완료된 정밀 상권 평가 호출
                     render_location_consulting_ui(view['store_name'], s_type, s_addr)
                     
                     if compare_mode == "단일 매장 조회":
