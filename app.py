@@ -5,6 +5,8 @@ import os
 import glob
 import re
 import hashlib
+import urllib.parse
+import streamlit.components.v1 as components
 
 # 1. 페이지 레이아웃 및 기본 설정
 st.set_page_config(
@@ -14,12 +16,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. 커스텀 CSS & 한글 메뉴 변환 스타일 (Streamlit Glide Data Grid 메뉴 완벽 한글화)
+# 2. 커스텀 CSS & 한글 메뉴 변환 스타일
 st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     
-    /* 일반 본문 및 대시보드 요소 폰트 지정 */
     html, body, p, div, span, label, button, input, textarea, select {
         font-family: 'Pretendard', -apple-system, sans-serif;
     }
@@ -147,10 +148,48 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 상권 분석 UI 렌더링 함수
+# 🧠 상권 분석 UI 렌더링 함수 (📌 구글맵 지도 상단 노출 적용)
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
+    # 📌 주소 인코딩 및 구글맵 임베드 URL 생성
+    encoded_addr = urllib.parse.quote(addr_str)
+    google_maps_embed_url = f"https://www.google.com/maps?q={encoded_addr}&output=embed"
+    google_maps_direct_url = f"https://www.google.com/maps/search/?api=1&query={encoded_addr}"
+    
+    # 📌 가맹점 형태 & 매장 주소 + 구글맵 지도 레이아웃
+    map_col1, map_col2 = st.columns([1.6, 1])
+    
+    with map_col1:
+        st.markdown(f'''
+        <div style="background-color: #f1f5f9; padding: 18px 20px; border-radius: 12px; border: 1px solid #e2e8f0; height: 180px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="font-size: 15px; margin-bottom: 8px;"><b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold; font-size: 16px;">{store_type}</span></div>
+            <div style="font-size: 14px; margin-bottom: 12px; color: #334155;"><b>📍 매장 주소:</b> {address}</div>
+            <div>
+                <a href="{google_maps_direct_url}" target="_blank" style="display: inline-block; background-color: #4f46e5; color: white; padding: 6px 14px; border-radius: 6px; text-decoration: none; font-size: 12.5px; font-weight: bold;">
+                    🗺️ Google 지도에서 크게 보기 ↗
+                </a>
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+        
+    with map_col2:
+        st.markdown(f'''
+        <div style="border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; height: 180px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+            <iframe 
+                width="100%" 
+                height="180" 
+                style="border:0;" 
+                loading="lazy" 
+                allowfullscreen 
+                referrerpolicy="no-referrer-when-downgrade" 
+                src="{google_maps_embed_url}">
+            </iframe>
+        </div>
+        ''', unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+
     hash_seed = int(hashlib.md5((str(store_name) + str(address)).encode('utf-8')).hexdigest(), 16)
     v1 = (hash_seed % 7) - 3
     v2 = ((hash_seed >> 3) % 7) - 3
@@ -283,13 +322,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     else:
         grade_badge = '<span style="background-color:#ef4444; color:white; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:12px;">C 등급 (주의 입지)</span>'
 
-    st.markdown(f'''
-    <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; border: 1px solid #e2e8f0;">
-        <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
-        <b>📍 매장 주소:</b> {address}
-    </div>
-    ''', unsafe_allow_html=True)
-
+    # 상단 요약 카드
     st.markdown(f"""
     <div style="background-color:#ffffff; border-left: 5px solid #4f46e5; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
