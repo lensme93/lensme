@@ -5,6 +5,7 @@ import os
 import glob
 import re
 import hashlib
+import streamlit.components.v1 as components
 
 # 1. 페이지 레이아웃 및 기본 설정
 st.set_page_config(
@@ -14,12 +15,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. 커스텀 CSS (아이콘 폰트 깨짐 및 글자 겹침 방지 수정)
+# 2. 커스텀 CSS (디자인 + 테이블 컨텍스트 메뉴 한글화)
 st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     
-    /* 일반 본문 및 대시보드 요소 폰트 지정 (Streamlit 내부 아이콘 폰트 보호) */
+    /* 일반 본문 및 대시보드 요소 폰트 지정 */
     html, body, p, div, span, label, button, input, textarea, select {
         font-family: 'Pretendard', -apple-system, sans-serif;
     }
@@ -49,6 +50,38 @@ st.markdown("""
     div[role="radiogroup"] { padding: 5px; background-color: #f8fafc; border-radius: 8px;}
 </style>
 """, unsafe_allow_html=True)
+
+# 📌 Streamlit 데이터 표 팝업 메뉴 한글 자동 번역 스크립트 실행
+components.html("""
+<script>
+const translations = {
+    'Sort ascending': '오름차순 정렬',
+    'Sort descending': '내림차순 정렬',
+    'Statistics': '통계 요약',
+    'Format': '서식 설정',
+    'Autosize': '너비 자동 맞춤',
+    'Pin column': '열 고정',
+    'Hide column': '열 숨기기'
+};
+
+function translateTableMenu() {
+    const parentDoc = window.parent.document;
+    const elements = parentDoc.querySelectorAll('div, span, button');
+    elements.forEach(el => {
+        if (el.children.length === 0 && el.textContent) {
+            const trimmed = el.textContent.trim();
+            if (translations[trimmed]) {
+                el.textContent = translations[trimmed];
+            }
+        }
+    });
+}
+
+const observer = new MutationObserver(translateTableMenu);
+observer.observe(window.parent.document.body, { childList: true, subtree: true });
+setInterval(translateTableMenu, 300);
+</script>
+""", height=0, width=0)
 
 # 🎨 공통 컬러 팔레트
 CATEGORY_COLORS = {
@@ -645,11 +678,10 @@ else:
                     st.markdown(f"<h3 style='color: #0f172a; text-align: center; border-bottom: 3px solid #4f46e5; padding-bottom: 10px; margin-bottom: 20px;'>{view['title']}</h3>", unsafe_allow_html=True)
                     s_type, s_addr = get_store_metadata(view['store_name'])
                     
-                    # 정밀 상권 평가 리포트
                     render_location_consulting_ui(view['store_name'], s_type, s_addr)
 
     # ==========================================
-    # [탭 2] 매출/주문데이터 (📌 수량 GAP 내림차순 자동 정렬 + 겹침 차단)
+    # [탭 2] 매출/주문데이터 (📌 수량 GAP 내림차순 정렬 표)
     # ==========================================
     with tab_sales:
         if not views:
@@ -795,7 +827,7 @@ else:
                     if show_orders: draw_view_chart("주문액", global_max_orders)
                     if show_margin: draw_view_chart("마진율", global_max_margin)
 
-                    # 📌 ⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 표
+                    # 📌 ⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 표 (GAP 내림차순 및 컬럼 정밀 설정)
                     st.markdown("<br><h4 style='color:#dc2626;'>⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 (자점매입/POS 미입력 의심)</h4>", unsafe_allow_html=True)
                     st.markdown("<p style='font-size:12.5px; color:#64748b;'>주문 수량(본사 출고) 대비 판매 수량(POS 입력) 간 차이(GAP)를 수량 GAP 내림차순으로 자동 정렬하여 비교합니다.</p>", unsafe_allow_html=True)
 
@@ -806,11 +838,9 @@ else:
                         주문액=('주문액', 'sum')
                     ).reset_index()
 
-                    # 수량 갭(GAP) 계산: 판매수량 - 주문수량
                     gap_base_df['수량_GAP(개)'] = gap_base_df['판매수량'] - gap_base_df['주문수량']
                     gap_base_df['금액_GAP(원)'] = gap_base_df['매출액'] - gap_base_df['주문액']
 
-                    # 📌 글자 겹침 방지용 간결 라벨 지정
                     def detect_anomaly(row):
                         if row['수량_GAP(개)'] > 0 and row['주문수량'] == 0:
                             return '🔴 무체사급 (주문0건)'
@@ -836,12 +866,10 @@ else:
                     elif filter_anomaly_option == '📦 POS 미입력/재고 누적 품목만 보기':
                         filtered_gap_df = filtered_gap_df[filtered_gap_df['수량_GAP(개)'] < 0]
 
-                    # 📌 수량 GAP(개) 내림차순 정렬
                     filtered_gap_df = filtered_gap_df.sort_values(by=['수량_GAP(개)'], ascending=False)
                     
                     display_gap_df = filtered_gap_df.copy()
                     
-                    # 컬럼 정돈 및 이름 변경
                     display_gap_df = display_gap_df.rename(columns={
                         'Custom_Channel': '카테고리',
                         '상품명2': '품목명',
@@ -859,7 +887,6 @@ else:
                     if display_gap_df.empty:
                         st.info("💡 해당 조건에 해당되는 이상 거래 감지 품목이 없습니다.")
                     else:
-                        # 📌 컬럼 너비 지정을 통해 팝업/리가처 겹침 완전 방지
                         st.dataframe(
                             display_gap_df,
                             column_config={
