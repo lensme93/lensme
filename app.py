@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. 커스텀 CSS (디자인)
+# 2. 커스텀 CSS (디자인 강화)
 st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -28,16 +28,25 @@ st.markdown("""
     .metric-label { font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
     .metric-value { font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px;}
     
-    .consulting-box { background-color: #ffffff; border-left: 5px solid #4f46e5; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 24px; }
-    .consulting-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
-    .consulting-desc { font-size: 14px; color: #334155; line-height: 1.6; }
+    /* 고급 상권분석 컨설팅 박스 디자인 */
+    .consulting-card { background-color: #ffffff; border-radius: 14px; padding: 22px 26px; border: 1px solid #cbd5e1; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); margin-bottom: 24px; }
+    .consulting-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 16px; }
+    .consulting-title { font-size: 18px; font-weight: 800; color: #0f172a; }
+    .grade-badge { font-size: 14px; font-weight: 800; padding: 4px 12px; border-radius: 20px; color: white; background: linear-gradient(135deg, #4f46e5, #6366f1); }
+    
+    .eval-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+    .eval-item { background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center; }
+    .eval-label { font-size: 12px; color: #64748b; font-weight: 600; }
+    .eval-score { font-size: 16px; font-weight: 800; color: #4f46e5; margin-top: 2px; }
+    
+    .section-tag { font-size: 14px; font-weight: 700; color: #1e293b; margin-top: 12px; margin-bottom: 6px; display: flex; align-items: center; }
+    .section-body { font-size: 13.5px; color: #334155; line-height: 1.65; margin-bottom: 10px; padding-left: 4px; }
     
     .border-indigo { border-top: 4px solid #4f46e5; }
     .border-emerald { border-top: 4px solid #10b981; }
     .border-amber { border-top: 4px solid #f59e0b; }
     .border-violet { border-top: 4px solid #8b5cf6; }
     .border-pink { border-top: 4px solid #ec4899; }
-    .border-sky { border-top: 4px solid #0284c7; }
     #MainMenu, footer {visibility: hidden;}
     button[data-baseweb="tab"] {font-size: 18px !important; font-weight: 700 !important; padding: 20px !important;}
     .stFileUploader { padding: 15px; background-color: #f1f5f9; border-radius: 10px; border: 2px dashed #cbd5e1; margin-bottom: 20px;}
@@ -66,14 +75,14 @@ def get_safe_column(df, possible_names, fallback_idx=None):
         return df.iloc[:, fallback_idx]
     return pd.Series([''] * len(df))
 
-# 📌 [해결책 B 핵심 1] 강력 지점명 정제 함수 (특수문자, 괄호, 숫자, 렌즈미, 점 삭제)
+# 📌 정제 함수 (괄호, 특수문자, 렌즈미, 점 삭제)
 def normalize_store_name(val):
     s = str(val)
-    s = re.sub(r'\(.*?\)', '', s)  # 괄호 및 안의 내용 제거
+    s = re.sub(r'\(.*?\)', '', s)
     s = s.replace('렌즈미', '').replace('점', '').replace(' ', '').strip()
     return s
 
-# 📌 [해결책 B 핵심 2] 가맹점 주소/형태 데이터프레임 자동 로드
+# 📌 가맹점 데이터 로드
 @st.cache_data
 def load_store_info_df():
     excel_path = "가맹점 주소 형태.xlsx"
@@ -89,23 +98,18 @@ def load_store_info_df():
 
 STORE_INFO_DF = load_store_info_df()
 
-# 📌 [해결책 B 핵심 3] 3단계 유연 매칭 알고리즘
+# 📌 3단계 유연 매칭
 def get_store_metadata(store_name):
     if STORE_INFO_DF.empty:
-        return "정보 없음", "가맹점 주소 형태.xlsx 로드 실패"
+        return "정보 없음", "가맹점 주소 형태.xlsx 파일 확인 필요"
     
     clean_target = normalize_store_name(store_name)
     if not clean_target:
         return "미지정", "주소 미등록"
 
-    # 1. 정제 키 완전 일치
     matched = STORE_INFO_DF[STORE_INFO_DF['matching_key'] == clean_target]
-    
-    # 2. 포함 관계 양방향 매칭
     if matched.empty:
         matched = STORE_INFO_DF[STORE_INFO_DF['matching_key'].apply(lambda x: (clean_target in x or x in clean_target) if x else False)]
-        
-    # 3. 앞 2글자 유사도 매칭
     if matched.empty and len(clean_target) >= 2:
         matched = STORE_INFO_DF[STORE_INFO_DF['matching_key'].apply(lambda x: (clean_target[:2] in x or x[:2] in clean_target) if x else False)]
     
@@ -116,44 +120,89 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 상권 분석 컨설팅 멘트 자동 생성 함수
-def generate_location_consulting(store_name, store_type, address):
+# 🧠 [고도화] 상권 심층 분석 및 평가 등급 리포트 생성기
+def generate_detailed_location_analysis(store_name, store_type, address):
     addr_str = str(address)
-    location_type = "일반 상권"
+    s_name = str(store_name)
     
+    # 1. 입지 상권 유형 판별
     if any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
-        location_type = "지하상가/유동인구형 상권"
-    elif any(k in addr_str for k in ['역', '로', '대로', '광장']) and any(k in store_name for k in ['역', '광장']):
-        location_type = "초역세권/유동 중심 상권"
-    elif any(k in addr_str for k in ['대학', '캠퍼스']) or any(k in store_name for k in ['고대', '외대', '대', '교']):
-        location_type = "대학가/1020 영타겟 상권"
-    elif any(k in addr_str for k in ['시청', '구청', '동', '길', '대로']):
-        location_type = "주거 및 행정 융합 상권"
-
-    advice = []
-    advice.append(f"📍 **[상권 특징 분석]** 해당 지점은 **'{location_type}'** 환경에 위치하며, 형태는 **'{store_type}'** 매장입니다.")
-    
-    if "지하상가" in location_type or "초역세권" in location_type:
-        advice.append("💡 **[매출 증대 전략]** 유동 인구가 많고 즉흥 구매율이 높은 특성이 있습니다. **트렌디한 PB/컬러렌즈 픽업 매대**를 입구 전면에 배치하고 원데이/행사 렌즈 입간판 홍보를 적극 활용하세요.")
-    elif "대학가" in location_type:
-        advice.append("💡 **[매출 증대 전략]** 1020 세대의 가성비/트렌드 민감도가 극대화되는 상권입니다. **1만~2만원대 트렌디 컬러렌즈**와 SNS 프로모션 연계 마케팅에 중점을 두는 것이 유리합니다.")
+        loc_type = "지하상가 / 초유동형 상권"
+        grade = "S등급 (유동성 우수)"
+        scores = {"유동성": "5.0 / 5.0", "접근성": "4.8 / 5.0", "재방문성": "3.2 / 5.0", "객단가": "3.5 / 5.0"}
+        target = "2030 직장인 및 등하교 학생층 (수동적/즉흥 구매 유동고객)"
+        strategy = "입구 전면 **쇼케이스 VMD 강화** 및 원데이·행사 팩렌즈 픽업존 구성으로 충동 구매 유도"
+        md_recommend = "원데이 컬러/투명 렌즈, 악마원데이, PB 고마진 소형 팩 라인업"
+    elif any(k in addr_str for k in ['대학', '캠퍼스']) or any(k in s_name for k in ['고대', '외대', '대', '교']):
+        loc_type = "대학가 / 1020 영타겟 상권"
+        grade = "A+등급 (트렌드 민감형)"
+        scores = {"유동성": "4.5 / 5.0", "접근성": "4.2 / 5.0", "재방문성": "4.0 / 5.0", "객단가": "3.2 / 5.0"}
+        target = "10대 후반 ~ 20대 대학생 (트렌드·가성비 중심 소모성 구매층)"
+        strategy = "SNS 이슈 상품 및 **1만~2만원대 트렌디 컬러렌즈** 집중 배치 + SNS 릴스/쇼츠 판촉 강화"
+        md_recommend = "1개월 먼슬리 컬러렌즈, 25,000원 이하 한달용 병렌즈, 트렌디 디자인 PB"
+    elif any(k in addr_str for k in ['역', '로', '대로', '광장']):
+        loc_type = "주요 역세권 / 로드숍 상권"
+        grade = "A등급 (안정성 우수)"
+        scores = {"유동성": "4.3 / 5.0", "접근성": "4.5 / 5.0", "재방문성": "3.8 / 5.0", "객단가": "4.2 / 5.0"}
+        target = "2040 광역 유동인구 및 지역 직장인"
+        strategy = "글로벌 브랜드와 PB 제품 간 **가격 대조 비교 진열**을 통한 고마진 PB 마진스위칭 유도"
+        md_recommend = "글로벌 투명 렌즈, 토릭(난시) 렌즈, 프리미엄 원데이 라인"
     else:
-        advice.append("💡 **[매출 증대 전략]** 정기 재방문 고객(단골) 비중이 높을 가능성이 큽니다. **원데이 투명렌즈 및 난시용/프리미엄 렌즈 세트 판매**로 객단가 증대를 유도하세요.")
+        loc_type = "주거 / 생활밀착형 상권"
+        grade = "B+등급 (단골 집착형)"
+        scores = {"유동성": "3.2 / 5.0", "접근성": "3.8 / 5.0", "재방문성": "4.8 / 5.0", "객단가": "4.5 / 5.0"}
+        target = "지역 거주민 및 정기재방문 단골 고객 (목적성 구매층)"
+        strategy = "CRM 데이터 기반 **문자/카톡 재구매 알림 마케팅** 및 난시/대용량 팩 세트 판매로 객단가 극대화"
+        md_recommend = "난시용(토릭) 렌즈, 장기착용 프리미엄 투명, 90P 대용량 원데이"
 
+    # 2. 매장 형태별 맞춤 가이드 추가
     if store_type in ["샵앤샵", "아이웨어샵"]:
-        advice.append("👓 **[형태별 컨설팅]** 안경원 병행 매장의 이점을 활용하여 **근시/난시 시력검안 연계 서비스**와 안경/렌즈 교차 구매 혜택을 강조하세요.")
+        type_advice = "👓 **[안경원 샵앤샵 전략]** 시력검안 공간과의 동선 연계를 강화하여, 단순 렌즈 구매 고객을 고마진 안경/난시 렌즈로 업셀링(Up-selling)하는 크로스 릴레이 이벤트를 실행하세요."
     elif store_type == "글라스미":
-        advice.append("✨ **[형태별 컨설팅]** 글라스미 렌즈/안경 토탈 브랜드 매장으로, **동선 유도형 렌즈 진열 및 고마진 PB 라인업 점유율 확대**에 집중하는 리뉴얼 전략이 권장됩니다.")
+        type_advice = "✨ **[글라스미 브랜드 전략]** 렌즈+안경 통합 브랜드의 강점을 활용하여, 오픈형 매대 진열을 통한 동선 유입 극대화 및 고마진 토탈 팩 상품 판매에 집중하세요."
     elif store_type == "단독샵":
-        advice.append("🏬 **[형태별 컨설팅]** 렌즈 전문 샵의 몰입감을 강조할 수 있도록 **체험존 강화 및 인테리어 갤러리 탭**을 참고한 리뉴얼 컨설팅을 진행해보세요.")
+        type_advice = "🏬 **[콘택트렌즈 단독샵 전략]** 전문 렌즈 쇼룸 형태의 인테리어 및 키오스크/체험 존을 활용해 1020 타겟층의 매장 체류 시간을 늘리는 브랜딩 공간 조성이 효과적입니다."
+    else:
+        type_advice = "💡 **[운영 효율화 전략]** 주력 고객층의 방문 시간대에 맞춘 전면 매대 리뉴얼을 진행하세요."
 
-    return "\n\n".join(advice)
+    # 3. HTML 카드 구조로 생성
+    html_content = f"""
+    <div class="consulting-card">
+        <div class="consulting-header">
+            <div>
+                <span style="font-size:13px; color:#64748b; font-weight:700;">📍 {loc_type}</span>
+                <div class="consulting-title">{store_name} 입지 심층 상권분석</div>
+            </div>
+            <div class="grade-badge">{grade}</div>
+        </div>
+        
+        <div style="font-size:12px; font-weight:700; color:#475569; margin-bottom:8px;">📊 입지 4대 핵심지표 평가 점수</div>
+        <div class="eval-grid">
+            <div class="eval-item"><div class="eval-label">유동성 (인구밀집)</div><div class="eval-score">{scores['유동성']}</div></div>
+            <div class="eval-item"><div class="eval-label">접근성 (진입용이)</div><div class="eval-score">{scores['접근성']}</div></div>
+            <div class="eval-item"><div class="eval-label">재방문성 (단골비율)</div><div class="eval-score">{scores['재방문성']}</div></div>
+            <div class="eval-item"><div class="eval-label">객단가 (소비여력)</div><div class="eval-score">{scores['객단가']}</div></div>
+        </div>
+        
+        <div class="section-tag">👥 메인 타겟 고객군</div>
+        <div class="section-body">{target}</div>
+        
+        <div class="section-tag">🎯 상권 맞춤 세일즈 전략</div>
+        <div class="section-body">{strategy}</div>
+        
+        <div class="section-tag">📦 추천 주력 MD (상품 구성)</div>
+        <div class="section-body">{md_recommend}</div>
+        
+        <div class="section-tag">🏪 매장 형태별 ({store_type}) 실행 가이드</div>
+        <div class="section-body">{type_advice}</div>
+    </div>
+    """
+    return html_content
 
 # 3. 데이터 로드 및 맵핑
 @st.cache_data
 def load_data(uploaded_files):
     all_dfs = []
-    
     for file in uploaded_files:
         try:
             df = pd.read_excel(file)
@@ -214,7 +263,6 @@ def load_data(uploaded_files):
             df['전화번호_정제'] = df['전화번호_임시'].fillna('').astype(str).str.strip().replace('nan', '')
 
             all_dfs.append(df)
-            
         except Exception as e:
             st.error(f"[{file.name}] 파일 로드 중 에러 발생: {e}")
             continue
@@ -509,14 +557,9 @@ else:
                     </div>
                     ''', unsafe_allow_html=True)
                     
-                    # 💡 상권 분석 컨설팅 멘트 영역
-                    consulting_text = generate_location_consulting(view['store_name'], s_type, s_addr)
-                    st.markdown(f'''
-                    <div class="consulting-box">
-                        <div class="consulting-title">💡 입지 상권분석 및 컨설팅 가이드</div>
-                        <div class="consulting-desc">{consulting_text}</div>
-                    </div>
-                    ''', unsafe_allow_html=True)
+                    # 💡 [고도화] 상권 심층 분석 및 평가 리포트 렌더링
+                    consulting_html = generate_detailed_location_analysis(view['store_name'], s_type, s_addr)
+                    st.markdown(consulting_html, unsafe_allow_html=True)
                     
                     if compare_mode == "단일 매장 조회":
                         kpi_cols = st.columns(5)
