@@ -108,25 +108,25 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 [오렌즈 2줄 코멘트 반영] 정밀 상권 컨설팅 UI 함수
+# 🧠 정밀 상권 컨설팅 UI 함수 (HTML 태그 제거 및 오렌즈 비교 위치 변경 완료)
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
-    # 📌 주소 기반 오렌즈 입지 비교 2줄 코멘트 생성
+    # 📌 오렌즈 입지 비교 2줄 마크다운 문구 설정
     has_olens_nearby = any(k in addr_str or k in store_name for k in ['역', '대학', '대로', '지하', '광장', '로', '동', '시청', '구청'])
     
     if has_olens_nearby:
-        olens_comment = """
-        • <b>상권 입지 비교:</b> 오렌즈가 대로변 메인 동선의 시인성을 선점한 상권이나, 본 매장은 도보 접근성과 임대료 가성비가 우수한 입지입니다.<br>
-        • <b>핵심 대응 전략:</b> 소모성 가격전 대신 렌즈미 단독 PB(악마원데이/트루핏) 전면 진열 및 정밀 검안 연계 세트 판매로 객단가를 차별화하세요.
-        """
+        olens_comment = (
+            "* **상권 입지 비교:** 오렌즈가 대로변 메인 동선의 시인성을 선점한 상권이나, 본 매장은 도보 접근성과 임대료 가성비가 우수한 입지입니다.\n"
+            "* **핵심 대응 전략:** 소모성 가격전 대신 렌즈미 단독 PB(악마원데이/트루핏) 전면 진열 및 정밀 검안 연계 세트 판매로 객단가를 차별화하세요."
+        )
     else:
-        olens_comment = """
-        • <b>상권 입지 비교:</b> 반경 500m 내 오렌즈 부재 구역으로, 지역 내 미용/컬러렌즈 수요를 우선 흡수할 수 있는 독점 선점 상권입니다.<br>
-        • <b>핵심 대응 전략:</b> 1만~2만원대 가성비 PB 라인업 및 SNS 프로모션을 적극 활용하여 지역 단골 고객층을 빠르게 고착화하세요.
-        """
+        olens_comment = (
+            "* **상권 입지 비교:** 반경 500m 내 오렌즈 부재 구역으로, 지역 내 미용/컬러렌즈 수요를 우선 흡수할 수 있는 독점 선점 상권입니다.\n"
+            "* **핵심 대응 전략:** 1만~2만원대 가성비 PB 라인업 및 SNS 프로모션을 적극 활용하여 지역 단골 고객층을 빠르게 고착화하세요."
+        )
 
-    # 상권 분류 및 디테일 평가 데이터
+    # 상권 분류 및 디테일 평가 데이터 (순수 마크다운 서식만 적용)
     if any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
         location_type = "지하상가/유동인구형 상권"
         scores = {"유동성·접근성": "24 / 25점", "배후 수요성": "18 / 25점", "집객력·활성화": "22 / 20점", "경쟁성·희소성": "11 / 15점", "입지 안정성": "11 / 15점"}
@@ -223,19 +223,11 @@ def render_location_consulting_ui(store_name, store_type, address):
 
     # 상단 요약 카드
     st.markdown(f"""
-    <div style="background-color:#ffffff; border-left: 5px solid #4f46e5; border-radius:12px; padding:18px; margin-bottom:12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+    <div style="background-color:#ffffff; border-left: 5px solid #4f46e5; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:16px; font-weight:700; color:#0f172a;">📊 입지 상권분석 정밀 평가 리포트</span>
             <div>평가 점수: <b style="font-size:18px; color:#4f46e5;">{total_score}점</b> / 100점 &nbsp;|&nbsp; {grade_badge}</div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 📌 오렌즈(O-LENS) 입지 비교 2줄 코멘트 박스
-    st.markdown(f"""
-    <div style="background-color:#f8fafc; border:1px solid #e2e8f0; border-left: 4px solid #ec4899; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:13px; color:#334155; line-height:1.6;">
-        <span style="font-weight:700; color:#db2777;">💡 [인근 경쟁사 입지 비교 (O-LENS)]</span><br>
-        {olens_comment}
     </div>
     """, unsafe_allow_html=True)
 
@@ -262,7 +254,7 @@ def render_location_consulting_ui(store_name, store_type, address):
 
     st.markdown("---")
     
-    # 하단 컨설팅 종합 가이드
+    # 📌 하단 컨설팅 리포트 (형태별 컨설팅 아래쪽에 '인근 경쟁사 입지 비교' 노출)
     st.markdown(f"📍 **[상권 종합 결론]** 해당 지점은 **'{location_type}'** 특성을 갖고 있으며, 형태는 **'{store_type}'** 브랜드 매장입니다.")
     
     if "지하상가" in location_type or "초역세권" in location_type:
@@ -278,6 +270,10 @@ def render_location_consulting_ui(store_name, store_type, address):
         st.markdown("✨ **[형태별 컨설팅]** 토탈 브랜드 매장의 메리트를 활용하여 **동선 유도형 진열 연출 및 고마진 PB 라인업 판매 비중**을 지속 확대하세요.")
     elif store_type == "단독샵":
         st.markdown("🏬 **[형태별 컨설팅]** 렌즈 전문 샵의 전문성을 강조하도록 **체험존 강화 및 시각적 디스플레이 리뉴얼**을 적용해 브랜드 몰입도를 높이세요.")
+
+    # 📌 [요청 반영] 형태별 컨설팅 하단에 배치된 오렌즈 2줄 입지 비교
+    st.markdown("💡 **[인근 경쟁사 입지 비교 (O-LENS)]**")
+    st.markdown(olens_comment)
 
 # 3. 데이터 로드 및 맵핑
 @st.cache_data
@@ -639,7 +635,7 @@ else:
                     </div>
                     ''', unsafe_allow_html=True)
                     
-                    # 💡 상권 정밀 평가 및 오렌즈 2줄 입지 코멘트 호출
+                    # 💡 상권 정밀 평가 및 수정한 컨설팅 UI 호출
                     render_location_consulting_ui(view['store_name'], s_type, s_addr)
                     
                     if compare_mode == "단일 매장 조회":
