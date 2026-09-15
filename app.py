@@ -844,3 +844,42 @@ def generate_location_consulting(store_name, store_type, address):
         advice.append("🏬 **[형태별 컨설팅]** 렌즈 전문 샵의 몰입감을 강조할 수 있도록 **체험존 강화 및 인테리어 갤러리 탭**을 참고한 리뉴얼 컨설팅을 진행해보세요.")
 
     return score, grade, eval_metrics, advice
+
+# 💡 상권 분석 & 평가 컨설팅 멘트 영역
+                    score, grade, eval_metrics, consulting_list = generate_location_consulting(view['store_name'], s_type, s_addr)
+                    
+                    with st.container():
+                        st.markdown("""
+                        <div style="background-color: #ffffff; border-left: 5px solid #4f46e5; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">📊 입지 상권 종합 평가 및 컨설팅 가이드</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # 📌 1. 상권 평가 종합 지표 표출 카드
+                        eval_col1, eval_col2 = st.columns([1, 2])
+                        with eval_col1:
+                            st.markdown(f'''
+                            <div style="background-color: #e0e7ff; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #c7d2fe;">
+                                <div style="font-size: 12px; color: #3730a3; font-weight: 700;">상권 종합 등급</div>
+                                <div style="font-size: 22px; font-weight: 900; color: #4f46e5; margin: 4px 0;">{grade}</div>
+                                <div style="font-size: 13px; color: #4338ca;">진단 점수: <b>{score}점</b> / 100점</div>
+                            </div>
+                            ''', unsafe_allow_html=True)
+                        
+                        with eval_col2:
+                            st.markdown(f'''
+                            <div style="background-color: #f8fafc; padding: 10px 14px; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 13px;">
+                                <b>· 유동성 지수:</b> {eval_metrics["유동성"]}<br>
+                                <b>· 타겟 적합도:</b> {eval_metrics["타겟 적합도"]}<br>
+                                <b>· 매장 접근성:</b> {eval_metrics["접근성"]}<br>
+                                <b>· 단골 형성성:</b> {eval_metrics["단골 형성성"]}
+                            </div>
+                            ''', unsafe_allow_html=True)
+                        
+                        st.markdown("<div style='margin-top: 12px;'></div>", unsafe_allow_html=True)
+                        
+                        # 📌 2. 마크다운 컨설팅 가이드 출력
+                        for item in consulting_list:
+                            st.markdown(item)
+                            
+                        st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
