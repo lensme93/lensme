@@ -60,7 +60,7 @@ def get_safe_column(df, possible_names, fallback_idx=None):
 # 📌 가맹점 주소 데이터 로드 함수 (캐시 적용 및 에러 핸들링 강화)
 @st.cache_data
 def load_store_info():
-    file_name = "가맹점 주소 형태_3.xlsx"
+    file_name = "가맹점 주소 형태_4.xlsx"
     if not os.path.exists(file_name):
         return None  
     
@@ -104,7 +104,7 @@ def load_store_info():
 store_map = load_store_info()
 
 if store_map is None:
-    st.error("🚨 **'가맹점 주소 형태_3.xlsx' 파일을 찾을 수 없거나 읽는 데 실패했습니다.** 파일명을 확인해주세요!")
+    st.error("🚨 **'가맹점 주소 형태_4.xlsx' 파일을 찾을 수 없거나 읽는 데 실패했습니다.** 파일명을 확인해주세요!")
     store_map = {}
 
 def get_store_details(store_name):
