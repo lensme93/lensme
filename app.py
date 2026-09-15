@@ -52,7 +52,8 @@ CATEGORY_COLORS = {
     '20,000원': '#14b8a6', '25,000원': '#f43f5e', '30,000원': '#f97316',
     '4만원 이상': '#eab308', '원데이 10P': '#d946ef', '악마원데이': '#84cc16',
     '투명렌즈': '#06b6d4', '부대용품': '#94a3b8', '기타(미분류)': '#cbd5e1',
-    '근시용': '#3b82f6', '난시용': '#ef4444', '해당없음': '#94a3b8'
+    '근시용': '#3b82f6', '난시용': '#ef4444', '해당없음': '#94a3b8',
+    '판매': '#4f46e5', '주문': '#0284c7'
 }
 
 def get_safe_column(df, possible_names, fallback_idx=None):
@@ -109,11 +110,10 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 (가성비 피드백 전면 삭제 및 고부가가치 세일즈 전략으로 개편) 상권 컨설팅 UI 함수
+# 🧠 정밀 세분화 및 깊이감 있는 텍스트를 제공하는 상권분석 UI 함수
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
-    # 지점별 고유 변동 편차 산출
     hash_seed = int(hashlib.md5((str(store_name) + str(address)).encode('utf-8')).hexdigest(), 16)
     v1 = (hash_seed % 7) - 3
     v2 = ((hash_seed >> 3) % 7) - 3
@@ -121,7 +121,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     v4 = ((hash_seed >> 9) % 5) - 2
     v5 = ((hash_seed >> 12) % 5) - 2
 
-    # 상권 분류 알고리즘
     if any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
         location_type = "지하상가 / 역사 통로 상권"
         base_scores = [24, 16, 21, 11, 10]
@@ -155,7 +154,6 @@ def render_location_consulting_ui(store_name, store_type, address):
         base_scores = [18, 21, 17, 13, 13]
         olens_case = "독점_일반"
 
-    # 가맹점 형태별 가중치 보정
     type_adj = [0, 0, 0, 0, 0]
     if store_type == "단독샵":
         type_adj = [1, 0, 1, 0, -1]
@@ -164,7 +162,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     elif store_type in ["샵앤샵", "아이웨어샵"]:
         type_adj = [-2, 1, -1, 1, 2]
 
-    # 개별 점수 계산
     s_flow = min(25, max(10, base_scores[0] + v1 + type_adj[0]))
     s_demand = min(25, max(10, base_scores[1] + v2 + type_adj[1]))
     s_traffic = min(20, max(8, base_scores[2] + v3 + type_adj[2]))
@@ -179,11 +176,10 @@ def render_location_consulting_ui(store_name, store_type, address):
         "입지 안정성": f"{s_stable} / 15점"
     }
 
-    # 📌 오렌즈 입지 비교 멘트 (가성비 언급 제외 및 브랜드 미학/고객 경험 차별화)
     if olens_case in ["과열_지하", "과열_대로", "경쟁_역세권"]:
         olens_comment = (
-            f"• <b>상권 입지 비교:</b> 오렌즈가 대로변 로드샵 시인성을 선점한 구역이나, **{store_name}** 매장은 **{store_type}** 특유의 도보 밀착성 및 안락한 검안 동선을 확보했습니다.\n"
-            "• <b>핵심 대응 전략:</b> 단순 출혈 가격전을 피하고, 프리미엄 메이크업 렌즈 디스플레이존 구축 및 렌즈미 독점 고마진 PB(악마원데이/트루핏) 비주얼 마케팅으로 브랜드 매력도를 높이세요."
+            f"• <b>상권 입지 비교:</b> 오렌즈가 대로변 메인 동선의 시인성을 선점한 구역이나, **{store_name}** 매장은 **{store_type}** 특유의 도보 밀착성 및 안락한 검안 동선을 확보했습니다.\n"
+            "• <b>핵심 대응 전략:</b> 소모성 가격전 대신, 프리미엄 메이크업 렌즈 디스플레이존 구축 및 렌즈미 독점 고마진 PB(악마원데이/트루핏) 비주얼 마케팅으로 브랜드 매력도를 높이세요."
         )
     elif olens_case == "경쟁_대학가":
         olens_comment = (
@@ -201,7 +197,6 @@ def render_location_consulting_ui(store_name, store_type, address):
             "• <b>핵심 대응 전략:</b> 프리미엄 실리콘 하이드로겔 렌즈 및 고기능성 렌즈 라인업 중심의 VMD 연출과 차별화된 멤버십 케어를 전면에 적용하세요."
         )
 
-    # 📌 세부 정밀 평가 내용 (가성비/저가 배치 제언 전면 제외 및 고부가가치 세일즈 위주 재구성)
     details = {
         "유동성·접근성": f"""
         * **보행 동선 및 인프라 진단:** **{store_name}** 매장은 **{location_type}** 중심 보행축에 위치하며, 보행 유동객의 유효 접면률은 약 **{s_flow * 3.8:.1f}%** 수준으로 산출됩니다.
@@ -251,7 +246,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     else:
         grade_badge = '<span style="background-color:#ef4444; color:white; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:12px;">C 등급 (주의 입지)</span>'
 
-    # 📌 가맹점 형태 & 주소 카드 노출
     st.markdown(f'''
     <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; border: 1px solid #e2e8f0;">
         <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
@@ -259,7 +253,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     ''', unsafe_allow_html=True)
 
-    # 상단 요약 카드
     st.markdown(f"""
     <div style="background-color:#ffffff; border-left: 5px solid #4f46e5; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -271,7 +264,6 @@ def render_location_consulting_ui(store_name, store_type, address):
 
     st.markdown("<p style='font-size:13px; font-weight:bold; color:#334155; margin-bottom:8px;'>👇 아래 항목 버튼을 누르시면 지점별 맞춤 세부 정밀 평가 내용 및 컨설팅 전략을 확인하실 수 있습니다.</p>", unsafe_allow_html=True)
 
-    # 세션 스테이트 관리
     session_key = f"active_detail_{store_name}"
     if session_key not in st.session_state:
         st.session_state[session_key] = list(scores.keys())[0]
@@ -285,14 +277,12 @@ def render_location_consulting_ui(store_name, store_type, address):
                 st.session_state[session_key] = item
                 st.rerun()
 
-    # 순수 마크다운 상세 카드
     active_item = st.session_state[session_key]
     st.markdown(f"#### 📌 [{active_item}] 세부 정밀 평가 내용 (점수: {scores[active_item]})")
     st.markdown(details[active_item])
 
     st.markdown("---")
     
-    # 📌 하단 컨설팅 리포트 (가성비 언급 없는 고부가가치 브랜딩 실행 전략)
     st.markdown(f"📍 **[상권 종합 결론]** 해당 지점은 **'{location_type}'** 특성을 갖고 있으며, 형태는 **'{store_type}'** 브랜드 매장입니다.")
     
     if "지하상가" in location_type or "초역세권" in location_type or "핫플" in location_type:
@@ -309,7 +299,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     elif store_type == "단독샵":
         st.markdown("🏬 **[형태별 컨설팅]** 렌즈 전문 샵의 전문성을 강조하도록 **체험형 거울 존 강화 및 시각적 디스플레이 리뉴얼**을 적용해 브랜드 몰입도를 높이세요.")
 
-    # 📌 인근 경쟁사 입지 비교 전용 독립 핑크 박스
     st.markdown(f"""
     <div style="background-color:#fdf2f8; border:1px solid #fbcfe8; border-left: 5px solid #ec4899; border-radius:10px; padding:16px; margin-top:16px; margin-bottom:24px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
         <div style="font-size:14px; font-weight:700; color:#db2777; margin-bottom:8px;">
@@ -321,7 +310,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     """, unsafe_allow_html=True)
 
-# 3. 데이터 로드 및 맵핑
+# 3. 데이터 로드 및 맵핑 (📌 판매 실적 + 추후 주문 수량/주문액 확장 매핑 연동)
 @st.cache_data
 def load_data(uploaded_files):
     all_dfs = []
@@ -332,6 +321,7 @@ def load_data(uploaded_files):
             df['파일명'] = file.name
             df.columns = df.columns.astype(str).str.replace(' ', '').str.replace('\n', '').str.strip()
             
+            # 판매 데이터 컬럼 매핑
             df['전표번호_임시'] = get_safe_column(df, ['전표번호', '영수증번호', '주문번호'])
             df['일자_임시'] = get_safe_column(df, ['방문일자', '일자', '날짜', '결제일', '판매일'], 0)
             df['상품명_임시'] = get_safe_column(df, ['상품명2', '상품명', '제품명'])
@@ -339,6 +329,10 @@ def load_data(uploaded_files):
             df['수량_임시'] = get_safe_column(df, ['합계', '수량', '판매수량'])
             df['공급단가_임시'] = get_safe_column(df, ['공급단가', '원가', '단가'], 11)
             
+            # 📌 추후 주문 데이터 확장 대비 컬럼 동적 매핑 (발주수량, 주문액, 주문금액 등)
+            df['주문수량_임시'] = get_safe_column(df, ['주문수량', '발주수량', '주문합계', '오더수량'])
+            df['주문액_임시'] = get_safe_column(df, ['주문액', '주문금액', '발주금액', '오더금액'])
+
             df['고객명_임시'] = get_safe_column(df, ['고객명', '회원명', '이름', '수령고객명'], 28)
             df['전화번호_임시'] = get_safe_column(df, ['전화번호', '핸드폰', '연락처', '휴대폰'], 31)
             
@@ -367,6 +361,10 @@ def load_data(uploaded_files):
             df['공급단가'] = to_num(df['공급단가_임시'])
             df['총원가'] = df['공급단가'] * df['합계']
             df['총마진'] = df['금액'] - df['총원가']
+
+            # 📌 주문 수량 및 주문액 산출 로직 (파일에 관련 열이 없을 경우 기본값 0 처리)
+            df['주문수량'] = to_num(df['주문수량_임시'])
+            df['주문액'] = to_num(df['주문액_임시'])
             
             df['품목그룹1'] = df['품목그룹1_임시'].fillna('미지정')
             df['품목그룹3'] = df['품목그룹3_임시'].fillna('미지정')
@@ -619,7 +617,7 @@ else:
     """, unsafe_allow_html=True)
 
     # 📌 4대 탭 구조
-    tab_consulting, tab_sales, tab_customer, tab_renewal = st.tabs(["🗺️ 상권분석컨설팅", "📊 매출데이터", "👥 고객데이터", "✨ 리뉴얼"])
+    tab_consulting, tab_sales, tab_customer, tab_renewal = st.tabs(["🗺️ 상권분석컨설팅", "📊 매출/주문데이터", "👥 고객데이터", "✨ 리뉴얼"])
 
     # ==========================================
     # [탭 1] 🗺️ 상권분석컨설팅
@@ -634,33 +632,40 @@ else:
                     st.markdown(f"<h3 style='color: #0f172a; text-align: center; border-bottom: 3px solid #4f46e5; padding-bottom: 10px; margin-bottom: 20px;'>{view['title']}</h3>", unsafe_allow_html=True)
                     s_type, s_addr = get_store_metadata(view['store_name'])
                     
-                    # 지점별 다이내믹 초디테일 정밀 상권분석 리포트 호출
+                    # 정밀 상권 평가 리포트
                     render_location_consulting_ui(view['store_name'], s_type, s_addr)
 
     # ==========================================
-    # [탭 2] 매출데이터
+    # [탭 2] 매출/주문데이터 (📌 판매 실적 VS 주문 실적 비교 틀 구현)
     # ==========================================
     with tab_sales:
         if not views:
             st.warning("비교할 대상(매장 또는 기간)을 선택해 주세요.")
         else:
-            st.markdown("👇 **출력할 차트 기준을 선택하세요!** (Y축 높이가 동일하게 고정됩니다.)")
-            chk_col1, chk_col2, chk_col3 = st.columns(3)
+            st.markdown("👇 **출력할 차트 기준을 선택하세요!** (판매/주문 실적 비교 지원)")
+            chk_col1, chk_col2, chk_col3, chk_col4 = st.columns(4)
             show_sales = chk_col1.checkbox("✅ 매출액 차트", value=True)
-            show_qty = chk_col2.checkbox("✅ 판매 수량 차트", value=False)
-            show_margin = chk_col3.checkbox("✅ 마진율 차트", value=False)
+            show_qty = chk_col2.checkbox("✅ 판매/주문 수량 차트", value=False)
+            show_orders = chk_col3.checkbox("✅ 주문액 차트", value=False)
+            show_margin = chk_col4.checkbox("✅ 마진율 차트", value=False)
             st.markdown("<hr style='margin-top:0px; margin-bottom:20px;'>", unsafe_allow_html=True)
 
-            global_max_sales, global_max_qty, global_max_margin = 100, 100, 100
+            global_max_sales, global_max_qty, global_max_orders, global_max_margin = 100, 100, 100, 100
             for v in views:
                 if v['df'].empty: 
                     continue
                 max_s = v['df'].groupby('Custom_Channel')['금액'].sum().max()
                 if pd.notna(max_s) and max_s > 0: 
                     global_max_sales = max(global_max_sales, max_s * 1.15)
+                
                 max_q = v['df'].groupby('Custom_Channel')['합계'].sum().max()
-                if pd.notna(max_q) and max_q > 0: 
-                    global_max_qty = max(global_max_qty, max_q * 1.15)
+                max_oq = v['df'].groupby('Custom_Channel')['주문수량'].sum().max()
+                global_max_qty = max(global_max_qty, max(max_q, max_oq) * 1.15)
+                
+                max_o = v['df'].groupby('Custom_Channel')['주문액'].sum().max()
+                if pd.notna(max_o) and max_o > 0: 
+                    global_max_orders = max(global_max_orders, max_o * 1.15)
+
                 lens_df = v['df'][v['df']['Custom_Channel'] != '기타']
                 if not lens_df.empty:
                     m_df = lens_df.groupby('Custom_Channel').agg({'금액':'sum', '총마진':'sum'})
@@ -683,6 +688,10 @@ else:
                         continue
                     
                     total_sales = v_df['금액'].sum()
+                    total_orders = v_df['주문액'].sum()
+                    total_qty = v_df['합계'].sum()
+                    total_order_qty = v_df['주문수량'].sum()
+
                     lens_df = v_df[v_df['Custom_Channel'] != '기타']
                     lens_sales = lens_df['금액'].sum()
                     
@@ -698,68 +707,95 @@ else:
                     </div>
                     ''', unsafe_allow_html=True)
                     
+                    # 📌 판매 VS 주문 KPI 카드 배치
                     if compare_mode == "단일 매장 조회":
-                        kpi_cols = st.columns(5)
-                        with kpi_cols[0]: st.markdown(f'<div class="metric-card border-indigo"><div class="metric-label">총 매출액</div><div class="metric-value">{int(total_sales):,} 원</div></div>', unsafe_allow_html=True)
-                        with kpi_cols[1]: st.markdown(f'<div class="metric-card border-emerald"><div class="metric-label">총 방문 고객 수</div><div class="metric-value">{int(total_receipts):,} 명(건)</div></div>', unsafe_allow_html=True)
-                        with kpi_cols[2]: st.markdown(f'<div class="metric-card border-pink"><div class="metric-label">마진율(렌즈)</div><div class="metric-value">{avg_margin_rate:.1f} %</div></div>', unsafe_allow_html=True)
-                        with kpi_cols[3]: st.markdown(f'<div class="metric-card border-amber"><div class="metric-label">평균객단가</div><div class="metric-value">{int(atv):,} 원</div></div>', unsafe_allow_html=True)
-                        with kpi_cols[4]: st.markdown(f'<div class="metric-card border-violet"><div class="metric-label">조회 품목 수</div><div class="metric-value" style="font-size:16px;">{v_df["상품명2"].nunique():,} 개</div></div>', unsafe_allow_html=True)
+                        kpi_cols = st.columns(6)
+                        with kpi_cols[0]: st.markdown(f'<div class="metric-card border-indigo"><div class="metric-label">총 매출액 (판매)</div><div class="metric-value">{int(total_sales):,} 원</div></div>', unsafe_allow_html=True)
+                        with kpi_cols[1]: st.markdown(f'<div class="metric-card border-sky"><div class="metric-label">총 주문액 (발주)</div><div class="metric-value">{int(total_orders):,} 원</div></div>', unsafe_allow_html=True)
+                        with kpi_cols[2]: st.markdown(f'<div class="metric-card border-emerald"><div class="metric-label">판매 / 주문 수량</div><div class="metric-value" style="font-size:15px;">{int(total_qty):,}개 / {int(total_order_qty):,}개</div></div>', unsafe_allow_html=True)
+                        with kpi_cols[3]: st.markdown(f'<div class="metric-card border-pink"><div class="metric-label">마진율(렌즈)</div><div class="metric-value">{avg_margin_rate:.1f} %</div></div>', unsafe_allow_html=True)
+                        with kpi_cols[4]: st.markdown(f'<div class="metric-card border-amber"><div class="metric-label">평균객단가</div><div class="metric-value">{int(atv):,} 원</div></div>', unsafe_allow_html=True)
+                        with kpi_cols[5]: st.markdown(f'<div class="metric-card border-violet"><div class="metric-label">조회 품목 수</div><div class="metric-value" style="font-size:16px;">{v_df["상품명2"].nunique():,} 개</div></div>', unsafe_allow_html=True)
                     else:
                         kpi_c1, kpi_c2 = st.columns(2)
                         with kpi_c1:
-                            st.markdown(f'<div class="metric-card border-indigo"><div class="metric-label">총 매출액</div><div class="metric-value">{int(total_sales):,} 원</div></div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="metric-card border-indigo"><div class="metric-label">총 매출액 (판매)</div><div class="metric-value">{int(total_sales):,} 원</div></div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="metric-card border-sky"><div class="metric-label">총 주문액 (발주)</div><div class="metric-value">{int(total_orders):,} 원</div></div>', unsafe_allow_html=True)
                             st.markdown(f'<div class="metric-card border-pink"><div class="metric-label">마진율(렌즈)</div><div class="metric-value">{avg_margin_rate:.1f} %</div></div>', unsafe_allow_html=True)
                         with kpi_c2:
-                            st.markdown(f'<div class="metric-card border-emerald"><div class="metric-label">총 방문 고객 수</div><div class="metric-value">{int(total_receipts):,} 명(건)</div></div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="metric-card border-emerald"><div class="metric-label">판매 수량 / 주문 수량</div><div class="metric-value" style="font-size:15px;">{int(total_qty):,}개 / {int(total_order_qty):,}개</div></div>', unsafe_allow_html=True)
                             st.markdown(f'<div class="metric-card border-amber"><div class="metric-label">평균객단가(전체)</div><div class="metric-value">{int(atv):,} 원</div></div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="metric-card border-violet"><div class="metric-label">조회 품목 수</div><div class="metric-value" style="font-size:16px;">{v_df["상품명2"].nunique():,} 개 품목 판매됨</div></div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="metric-card border-violet"><div class="metric-label">조회 품목 수</div><div class="metric-value" style="font-size:16px;">{v_df["상품명2"].nunique():,} 개</div></div>', unsafe_allow_html=True)
 
                     def draw_view_chart(metric_name, max_y):
                         if metric_name == "마진율":
                             df_bar = lens_df.groupby('Custom_Channel').agg({'금액':'sum', '총마진':'sum'}).reset_index()
                             df_bar['마진율'] = df_bar.apply(lambda x: (x['총마진'] / x['금액'] * 100) if x['금액'] > 0 else 0, axis=1)
-                            y_col, text_fmt, y_title = '마진율', '<b>%{text:.1f}%</b>', '마진율(%)'
-                        else:
-                            df_bar = v_df.groupby('Custom_Channel')['금액' if metric_name == '매출액' else '합계'].sum().reset_index()
-                            y_col = '금액' if metric_name == '매출액' else '합계'
-                            text_fmt = '<b>%{text:,.0f}원</b>' if metric_name == '매출액' else '<b>%{text:,.0f}개</b>'
-                            y_title = metric_name
+                            fig_bar = px.bar(df_bar, x='Custom_Channel', y='마진율', text='마진율', color='Custom_Channel', color_discrete_map=CATEGORY_COLORS)
+                            fig_bar.update_traces(texttemplate='<b>%{text:.1f}%</b>', textposition='outside', width=0.5)
+                            fig_bar.update_layout(yaxis=dict(range=[0, max_y], showgrid=True, gridcolor='#f1f5f9', nticks=8), xaxis_title="", yaxis_title="마진율(%)", margin=dict(l=10, r=10, t=25, b=10), showlegend=False, plot_bgcolor='white', paper_bgcolor='white')
+                        
+                        elif metric_name == "판매/주문 수량":
+                            df_bar = v_df.groupby('Custom_Channel').agg({'합계':'sum', '주문수량':'sum'}).reset_index()
+                            df_melted = pd.melt(df_bar, id_vars=['Custom_Channel'], value_vars=['합계', '주문수량'], var_name='구분', value_name='수량')
+                            df_melted['구분'] = df_melted['구분'].replace({'합계':'판매수량', '주문수량':'주문수량'})
+                            fig_bar = px.bar(df_melted, x='Custom_Channel', y='수량', color='구분', barmode='group', text='수량', color_discrete_map={'판매수량':'#4f46e5', '주문수량':'#0284c7'})
+                            fig_bar.update_traces(texttemplate='<b>%{text:,.0f}개</b>', textposition='outside')
+                            fig_bar.update_layout(yaxis=dict(range=[0, max_y], showgrid=True, gridcolor='#f1f5f9', nticks=8), xaxis_title="", yaxis_title="수량(개)", margin=dict(l=10, r=10, t=25, b=10), showlegend=True, plot_bgcolor='white', paper_bgcolor='white')
+                        
+                        elif metric_name == "주문액":
+                            df_bar = v_df.groupby('Custom_Channel')['주문액'].sum().reset_index()
+                            fig_bar = px.bar(df_bar, x='Custom_Channel', y='주문액', text='주문액', color='Custom_Channel', color_discrete_map=CATEGORY_COLORS)
+                            fig_bar.update_traces(texttemplate='<b>%{text:,.0f}원</b>', textposition='outside', width=0.5)
+                            fig_bar.update_layout(yaxis=dict(range=[0, max_y], showgrid=True, gridcolor='#f1f5f9', nticks=8), xaxis_title="", yaxis_title="주문액(원)", margin=dict(l=10, r=10, t=25, b=10), showlegend=False, plot_bgcolor='white', paper_bgcolor='white')
+                            
+                        else: # 매출액
+                            df_bar = v_df.groupby('Custom_Channel')['금액'].sum().reset_index()
+                            fig_bar = px.bar(df_bar, x='Custom_Channel', y='금액', text='금액', color='Custom_Channel', color_discrete_map=CATEGORY_COLORS)
+                            fig_bar.update_traces(texttemplate='<b>%{text:,.0f}원</b>', textposition='outside', width=0.5)
+                            fig_bar.update_layout(yaxis=dict(range=[0, max_y], showgrid=True, gridcolor='#f1f5f9', nticks=8), xaxis_title="", yaxis_title="매출액(원)", margin=dict(l=10, r=10, t=25, b=10), showlegend=False, plot_bgcolor='white', paper_bgcolor='white')
 
                         st.markdown(f"<div style='margin-top:20px; font-weight:bold; color:#334155;'>📈 카테고리별 {metric_name} 추이</div>", unsafe_allow_html=True)
-                        fig_bar = px.bar(df_bar, x='Custom_Channel', y=y_col, text=y_col, color='Custom_Channel', color_discrete_map=CATEGORY_COLORS)
-                        fig_bar.update_traces(texttemplate=text_fmt, textposition='outside', width=0.5, opacity=1.0, textfont=dict(size=14, color='#020617'))
-                        fig_bar.update_layout(yaxis=dict(range=[0, max_y], showgrid=True, gridcolor='#f1f5f9', nticks=8), xaxis_title="", yaxis_title=y_title, margin=dict(l=10, r=10, t=25, b=10), showlegend=False, plot_bgcolor='white', paper_bgcolor='white')
                         st.plotly_chart(fig_bar, use_container_width=True)
 
-                        if len(selected_channels) >= 2: pie_target = 'Custom_Channel'
-                        elif len(selected_prices) >= 2: pie_target = 'Price_Type'
-                        elif len(selected_color_types) >= 1: pie_target = 'Color_Type'
-                        elif len(selected_vision_types) >= 1: pie_target = 'Vision_Type'
-                        else: pie_target = 'Custom_Channel'
-                        
-                        df_pie_base = lens_df if metric_name == "마진율" else v_df
-                        pie_y = '총마진' if metric_name == "마진율" else ('금액' if metric_name == '매출액' else '합계')
-                        
-                        st.markdown(f"<div style='font-weight:bold; color:#334155;'>🍩 {metric_name} 비중 비교</div>", unsafe_allow_html=True)
-                        pie_data = df_pie_base.groupby(pie_target)[pie_y].sum().reset_index()
-                        pie_data = pie_data[pie_data[pie_y] > 0]
-                        if not pie_data.empty:
-                            fig_pie = px.pie(pie_data, values=pie_y, names=pie_target, hole=0.5, color=pie_target, color_discrete_map=CATEGORY_COLORS)
-                            fig_pie.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#ffffff', width=2)), textfont=dict(size=15, color='#ffffff'))
-                            fig_pie.update_layout(margin=dict(l=10, r=10, t=10, b=10), showlegend=False, plot_bgcolor='white', paper_bgcolor='white')
-                            st.plotly_chart(fig_pie, use_container_width=True)
+                        if metric_name != "판매/주문 수량":
+                            if len(selected_channels) >= 2: pie_target = 'Custom_Channel'
+                            elif len(selected_prices) >= 2: pie_target = 'Price_Type'
+                            elif len(selected_color_types) >= 1: pie_target = 'Color_Type'
+                            elif len(selected_vision_types) >= 1: pie_target = 'Vision_Type'
+                            else: pie_target = 'Custom_Channel'
+                            
+                            df_pie_base = lens_df if metric_name == "마진율" else v_df
+                            pie_y = '총마진' if metric_name == "마진율" else ('주문액' if metric_name == '주문액' else '금액')
+                            
+                            st.markdown(f"<div style='font-weight:bold; color:#334155;'>🍩 {metric_name} 비중 비교</div>", unsafe_allow_html=True)
+                            pie_data = df_pie_base.groupby(pie_target)[pie_y].sum().reset_index()
+                            pie_data = pie_data[pie_data[pie_y] > 0]
+                            if not pie_data.empty:
+                                fig_pie = px.pie(pie_data, values=pie_y, names=pie_target, hole=0.5, color=pie_target, color_discrete_map=CATEGORY_COLORS)
+                                fig_pie.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#ffffff', width=2)), textfont=dict(size=15, color='#ffffff'))
+                                fig_pie.update_layout(margin=dict(l=10, r=10, t=10, b=10), showlegend=False, plot_bgcolor='white', paper_bgcolor='white')
+                                st.plotly_chart(fig_pie, use_container_width=True)
 
                     if show_sales: draw_view_chart("매출액", global_max_sales)
-                    if show_qty: draw_view_chart("판매 수량", global_max_qty)
+                    if show_qty: draw_view_chart("판매/주문 수량", global_max_qty)
+                    if show_orders: draw_view_chart("주문액", global_max_orders)
                     if show_margin: draw_view_chart("마진율", global_max_margin)
 
-                    st.markdown("<br><h4 style='color:#334155;'>📋 상세 실적 현황</h4>", unsafe_allow_html=True)
-                    table_df = v_df.groupby(['Custom_Channel', 'Color_Type', 'Vision_Type', 'Price_Type', '상품명2']).agg(판매수량=('합계', 'sum'), 매출액=('금액', 'sum'), 총마진=('총마진', 'sum')).reset_index().sort_values(by=['매출액'], ascending=[False])
+                    # 📌 판매 실적 VS 주문 실적 대조 테이블
+                    st.markdown("<br><h4 style='color:#334155;'>📋 상세 판매 / 주문 실적 현황</h4>", unsafe_allow_html=True)
+                    table_df = v_df.groupby(['Custom_Channel', 'Color_Type', 'Vision_Type', 'Price_Type', '상품명2']).agg(
+                        판매수량=('합계', 'sum'),
+                        매출액=('금액', 'sum'),
+                        주문수량=('주문수량', 'sum'),
+                        주문액=('주문액', 'sum'),
+                        총마진=('총마진', 'sum')
+                    ).reset_index().sort_values(by=['매출액'], ascending=[False])
+                    
                     table_df['총마진액(원)'] = table_df.apply(lambda x: '-' if x['Custom_Channel'] == '기타' else f"{int(x['총마진']):,}", axis=1)
                     table_df['마진율(%)'] = table_df.apply(lambda x: '-' if x['Custom_Channel'] == '기타' else f"{(x['총마진'] / x['매출액'] * 100 if x['매출액'] > 0 else 0):.1f}%", axis=1)
                     table_df = table_df.drop(columns=['총마진'])
-                    table_df.columns = ['카테고리', '렌즈종류', '도수타입', '금액 별 카테고리', '품목명', '판매수량(개)', '매출액(원)', '총마진액(원)', '마진율(%)']
+                    table_df.columns = ['카테고리', '렌즈종류', '도수타입', '금액 별 카테고리', '품목명', '판매수량(개)', '매출액(원)', '주문수량(개)', '주문액(원)', '총마진액(원)', '마진율(%)']
                     st.dataframe(table_df, use_container_width=True, height=350)
 
     # ==========================================
