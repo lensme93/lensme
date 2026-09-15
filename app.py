@@ -14,11 +14,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. 커스텀 CSS (디자인)
+# 2. 커스텀 CSS (아이콘 폰트 깨짐 및 글자 겹침 방지 수정)
 st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-    * { font-family: 'Pretendard', -apple-system, sans-serif !important; }
+    
+    /* 일반 본문 및 대시보드 요소 폰트 지정 (Streamlit 내부 아이콘 폰트 보호) */
+    html, body, p, div, span, label, button, input, textarea, select {
+        font-family: 'Pretendard', -apple-system, sans-serif;
+    }
+    
     .stApp { background-color: #f8fafc; }
     section[data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #e2e8f0; }
     .header-banner { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 24px 32px; border-radius: 16px; color: white; margin-bottom: 24px; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1); }
@@ -640,10 +645,11 @@ else:
                     st.markdown(f"<h3 style='color: #0f172a; text-align: center; border-bottom: 3px solid #4f46e5; padding-bottom: 10px; margin-bottom: 20px;'>{view['title']}</h3>", unsafe_allow_html=True)
                     s_type, s_addr = get_store_metadata(view['store_name'])
                     
+                    # 정밀 상권 평가 리포트
                     render_location_consulting_ui(view['store_name'], s_type, s_addr)
 
     # ==========================================
-    # [탭 2] 매출/주문데이터 (📌 겹침 현상 원천 차단 + GAP 내림차순 자동 정렬 표)
+    # [탭 2] 매출/주문데이터 (📌 수량 GAP 내림차순 자동 정렬 + 겹침 차단)
     # ==========================================
     with tab_sales:
         if not views:
@@ -789,7 +795,7 @@ else:
                     if show_orders: draw_view_chart("주문액", global_max_orders)
                     if show_margin: draw_view_chart("마진율", global_max_margin)
 
-                    # 📌 [요청 반영] ⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 표 (글자 겹침 해결 & 수량 GAP 내림차순 기본 정렬)
+                    # 📌 ⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 표
                     st.markdown("<br><h4 style='color:#dc2626;'>⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 (자점매입/POS 미입력 의심)</h4>", unsafe_allow_html=True)
                     st.markdown("<p style='font-size:12.5px; color:#64748b;'>주문 수량(본사 출고) 대비 판매 수량(POS 입력) 간 차이(GAP)를 수량 GAP 내림차순으로 자동 정렬하여 비교합니다.</p>", unsafe_allow_html=True)
 
@@ -804,7 +810,7 @@ else:
                     gap_base_df['수량_GAP(개)'] = gap_base_df['판매수량'] - gap_base_df['주문수량']
                     gap_base_df['금액_GAP(원)'] = gap_base_df['매출액'] - gap_base_df['주문액']
 
-                    # 📌 텍스트 겹침 방지용 정제된 간결한 라벨 지정
+                    # 📌 글자 겹침 방지용 간결 라벨 지정
                     def detect_anomaly(row):
                         if row['수량_GAP(개)'] > 0 and row['주문수량'] == 0:
                             return '🔴 무체사급 (주문0건)'
@@ -830,7 +836,7 @@ else:
                     elif filter_anomaly_option == '📦 POS 미입력/재고 누적 품목만 보기':
                         filtered_gap_df = filtered_gap_df[filtered_gap_df['수량_GAP(개)'] < 0]
 
-                    # 📌 [핵심] 수량 GAP(개) 내림차순 정렬 적용
+                    # 📌 수량 GAP(개) 내림차순 정렬
                     filtered_gap_df = filtered_gap_df.sort_values(by=['수량_GAP(개)'], ascending=False)
                     
                     display_gap_df = filtered_gap_df.copy()
@@ -853,12 +859,12 @@ else:
                     if display_gap_df.empty:
                         st.info("💡 해당 조건에 해당되는 이상 거래 감지 품목이 없습니다.")
                     else:
-                        # 📌 컬럼 너비 지정 및 숫자 포맷팅으로 텍스트 겹침 완전 방지
+                        # 📌 컬럼 너비 지정을 통해 팝업/리가처 겹침 완전 방지
                         st.dataframe(
                             display_gap_df,
                             column_config={
                                 "카테고리": st.column_config.TextColumn("카테고리", width="small"),
-                                "품목명": st.column_config.TextColumn("품목명", width="medium"),
+                                "품목명": st.column_config.TextColumn("품목명", width="large"),
                                 "진단 유형": st.column_config.TextColumn("진단 유형", width="medium"),
                                 "판매수량(개)": st.column_config.NumberColumn("판매수량(개)", format="%d"),
                                 "주문수량(개)": st.column_config.NumberColumn("주문수량(개)", format="%d"),
