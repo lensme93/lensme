@@ -111,10 +111,11 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 정밀 세분화 및 깊이감 있는 텍스트를 제공하는 상권분석 UI 함수
+# 🧠 상권 분석 UI 렌더링 함수
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
+    # 1. 지점별 고유 해시 기반 정밀 변동 편차 산출
     hash_seed = int(hashlib.md5((str(store_name) + str(address)).encode('utf-8')).hexdigest(), 16)
     v1 = (hash_seed % 7) - 3
     v2 = ((hash_seed >> 3) % 7) - 3
@@ -122,6 +123,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     v4 = ((hash_seed >> 9) % 5) - 2
     v5 = ((hash_seed >> 12) % 5) - 2
 
+    # 2. 세분화된 상권 분류 알고리즘
     if any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
         location_type = "지하상가 / 역사 통로 상권"
         base_scores = [24, 16, 21, 11, 10]
@@ -155,6 +157,7 @@ def render_location_consulting_ui(store_name, store_type, address):
         base_scores = [18, 21, 17, 13, 13]
         olens_case = "독점_일반"
 
+    # 3. 가맹점 형태별 가중치 보정
     type_adj = [0, 0, 0, 0, 0]
     if store_type == "단독샵":
         type_adj = [1, 0, 1, 0, -1]
@@ -163,6 +166,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     elif store_type in ["샵앤샵", "아이웨어샵"]:
         type_adj = [-2, 1, -1, 1, 2]
 
+    # 4. 개별 점수 계산
     s_flow = min(25, max(10, base_scores[0] + v1 + type_adj[0]))
     s_demand = min(25, max(10, base_scores[1] + v2 + type_adj[1]))
     s_traffic = min(20, max(8, base_scores[2] + v3 + type_adj[2]))
@@ -177,10 +181,11 @@ def render_location_consulting_ui(store_name, store_type, address):
         "입지 안정성": f"{s_stable} / 15점"
     }
 
+    # 5. 오렌즈 입지 비교 멘트
     if olens_case in ["과열_지하", "과열_대로", "경쟁_역세권"]:
         olens_comment = (
-            f"• <b>상권 입지 비교:</b> 오렌즈가 대로변 메인 동선의 시인성을 선점한 구역이나, **{store_name}** 매장은 **{store_type}** 특유의 도보 밀착성 및 안락한 검안 동선을 확보했습니다.\n"
-            "• <b>핵심 대응 전략:</b> 소모성 가격전 대신, 프리미엄 메이크업 렌즈 디스플레이존 구축 및 렌즈미 독점 고마진 PB(악마원데이/트루핏) 비주얼 마케팅으로 브랜드 매력도를 높이세요."
+            f"• <b>상권 입지 비교:</b> 오렌즈가 대로변 로드샵 시인성을 선점한 구역이나, **{store_name}** 매장은 **{store_type}** 특유의 도보 밀착성 및 안락한 검안 동선을 확보했습니다.\n"
+            "• <b>핵심 대응 전략:</b> 단순 출혈 가격전을 피하고, 프리미엄 메이크업 렌즈 디스플레이존 구축 및 렌즈미 독점 고마진 PB(악마원데이/트루핏) 비주얼 마케팅으로 브랜드 매력도를 높이세요."
         )
     elif olens_case == "경쟁_대학가":
         olens_comment = (
@@ -198,6 +203,7 @@ def render_location_consulting_ui(store_name, store_type, address):
             "• <b>핵심 대응 전략:</b> 프리미엄 실리콘 하이드로겔 렌즈 및 고기능성 렌즈 라인업 중심의 VMD 연출과 차별화된 멤버십 케어를 전면에 적용하세요."
         )
 
+    # 6. 초디테일 진단 및 실행 솔루션 텍스트
     details = {
         "유동성·접근성": f"""
         * **보행 동선 및 인프라 진단:** **{store_name}** 매장은 **{location_type}** 중심 보행축에 위치하며, 보행 유동객의 유효 접면률은 약 **{s_flow * 3.8:.1f}%** 수준으로 산출됩니다.
@@ -247,6 +253,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     else:
         grade_badge = '<span style="background-color:#ef4444; color:white; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:12px;">C 등급 (주의 입지)</span>'
 
+    # 가맹점 형태 & 주소 카드 노출
     st.markdown(f'''
     <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; border: 1px solid #e2e8f0;">
         <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
@@ -254,6 +261,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     ''', unsafe_allow_html=True)
 
+    # 상단 요약 카드
     st.markdown(f"""
     <div style="background-color:#ffffff; border-left: 5px solid #4f46e5; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -311,7 +319,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     """, unsafe_allow_html=True)
 
-# 3. 데이터 로드 및 맵핑 (📌 판매 실적 + 주문 수량/주문액 확장 연동)
+# 3. 데이터 로드 및 맵핑 (📌 판매 파일 및 주문 파일 자동 감지 및 처리)
 @st.cache_data
 def load_data(uploaded_files):
     all_dfs = []
@@ -322,14 +330,17 @@ def load_data(uploaded_files):
             df['파일명'] = file.name
             df.columns = df.columns.astype(str).str.replace(' ', '').str.replace('\n', '').str.strip()
             
-            df['전표번호_임시'] = get_safe_column(df, ['전표번호', '영수증번호', '주문번호'])
+            clean_cols = df.columns.tolist()
+            # 📌 주문/발주 파일 여부 자동 판단
+            is_order_file = any(kw in file.name for kw in ['주문', '발주', '오더', '입고', '출고']) or ('본사할인율' in clean_cols and '고객명' not in clean_cols)
+
+            df['전표번호_임시'] = get_safe_column(df, ['전표번호', '영수증번호', '주문번호', '관리번호'])
             df['일자_임시'] = get_safe_column(df, ['방문일자', '일자', '날짜', '결제일', '판매일'], 0)
             df['상품명_임시'] = get_safe_column(df, ['상품명2', '상품명', '제품명'])
             df['금액_임시'] = get_safe_column(df, ['금액', '판매금액', '결제금액', '매출액'])
             df['수량_임시'] = get_safe_column(df, ['합계', '수량', '판매수량'])
-            df['공급단가_임시'] = get_safe_column(df, ['공급단가', '원가', '단가'], 11)
+            df['공급단가_임시'] = get_safe_column(df, ['공급단가', '원가', '단가', '매입가'], 11)
             
-            # 📌 주문 수량 및 주문액 동적 매핑
             df['주문수량_임시'] = get_safe_column(df, ['주문수량', '발주수량', '주문합계', '오더수량'])
             df['주문액_임시'] = get_safe_column(df, ['주문액', '주문금액', '발주금액', '오더금액'])
 
@@ -342,8 +353,7 @@ def load_data(uploaded_files):
             df['생산업체_임시'] = get_safe_column(df, ['생산업체', '제조사', '브랜드'])
             df['거래처_임시'] = get_safe_column(df, ['거래처(부서)', '거래처', '매장명', '지점명'])
 
-            df = df[df['전표번호_임시'] != '']
-            df = df.dropna(subset=['전표번호_임시'])
+            df = df[df['전표번호_임시'].notna() & (df['전표번호_임시'] != '')]
             df = df[~df['일자_임시'].astype(str).str.contains('합', na=False)]
             
             exclude_keywords = ['글라스미', '안경테', '안경렌즈']
@@ -356,15 +366,24 @@ def load_data(uploaded_files):
             def to_num(series): 
                 return pd.to_numeric(series.astype(str).str.replace(',', ''), errors='coerce').fillna(0)
             
-            df['금액'] = to_num(df['금액_임시'])
-            df['합계'] = to_num(df['수량_임시'])
-            df['공급단가'] = to_num(df['공급단가_임시'])
-            df['총원가'] = df['공급단가'] * df['합계']
-            df['총마진'] = df['금액'] - df['총원가']
+            # 📌 주문 파일 VS 판매 파일에 따른 수량/금액 필드 매핑 분기
+            if is_order_file:
+                df['금액'] = 0.0
+                df['합계'] = 0.0
+                df['공급단가'] = to_num(df['공급단가_임시'])
+                df['총원가'] = 0.0
+                df['총마진'] = 0.0
+                df['주문수량'] = to_num(df['수량_임시'])
+                df['주문액'] = to_num(df['금액_임시'])
+            else:
+                df['금액'] = to_num(df['금액_임시'])
+                df['합계'] = to_num(df['수량_임시'])
+                df['공급단가'] = to_num(df['공급단가_임시'])
+                df['총원가'] = df['공급단가'] * df['합계']
+                df['총마진'] = df['금액'] - df['총원가']
+                df['주문수량'] = to_num(df['주문수량_임시'])
+                df['주문액'] = to_num(df['주문액_임시'])
 
-            df['주문수량'] = to_num(df['주문수량_임시'])
-            df['주문액'] = to_num(df['주문액_임시'])
-            
             df['품목그룹1'] = df['품목그룹1_임시'].fillna('미지정')
             df['품목그룹3'] = df['품목그룹3_임시'].fillna('미지정')
             df['품목그룹4'] = df['품목그룹4_임시'].fillna('미지정')
@@ -635,7 +654,7 @@ else:
                     render_location_consulting_ui(view['store_name'], s_type, s_addr)
 
     # ==========================================
-    # [탭 2] 매출/주문데이터 (📌 자점매입/POS 미입력 의심 GAP 분석 표 구현)
+    # [탭 2] 매출/주문데이터
     # ==========================================
     with tab_sales:
         if not views:
@@ -781,7 +800,7 @@ else:
                     if show_orders: draw_view_chart("주문액", global_max_orders)
                     if show_margin: draw_view_chart("마진율", global_max_margin)
 
-                    # 📌 [요청 반영] ⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 표 추가
+                    # 📌 ⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 표
                     st.markdown("<br><h4 style='color:#dc2626;'>⚠️ 이상 거래 감지 및 재고 갭(GAP) 분석 (자점매입/POS 미입력 의심)</h4>", unsafe_allow_html=True)
                     st.markdown("<p style='font-size:12.5px; color:#64748b;'>주문 수량(본사 출고) 대비 판매 수량(POS 입력) 간 차이(GAP)를 비교하여 이상 거래를 자동 판별합니다.</p>", unsafe_allow_html=True)
 
@@ -792,7 +811,6 @@ else:
                         주문액=('주문액', 'sum')
                     ).reset_index()
 
-                    # 수량 갭(GAP) 계산: 판매수량 - 주문수량
                     gap_base_df['수량_GAP(개)'] = gap_base_df['판매수량'] - gap_base_df['주문수량']
                     gap_base_df['금액_GAP(원)'] = gap_base_df['매출액'] - gap_base_df['주문액']
 
@@ -823,7 +841,6 @@ else:
 
                     filtered_gap_df = filtered_gap_df.sort_values(by=['수량_GAP(개)'], ascending=False)
                     
-                    # 서식 변환
                     display_gap_df = filtered_gap_df.copy()
                     display_gap_df['매출액(원)'] = display_gap_df['매출액'].apply(lambda x: f"{int(x):,}")
                     display_gap_df['주문액(원)'] = display_gap_df['주문액'].apply(lambda x: f"{int(x):,}")
