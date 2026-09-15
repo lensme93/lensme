@@ -67,43 +67,66 @@ def get_safe_column(df, possible_names, fallback_idx=None):
         return df.iloc[:, fallback_idx]
     return pd.Series([''] * len(df))
 
+# 📌 핵심 지점명 정제 함수 (괄호, 숫자, 특수문자, '렌즈미', '점' 전면 제거)
+def normalize_store_name(val):
+    s = str(val)
+    s = re.sub(r'\(.*?\)', '', s)  # 괄호와 괄호 안 내용 삭제
+    s = s.replace('렌즈미', '').replace('점', '').replace(' ', '').strip()
+    return s
+
 # 📌 가맹점 정보(주소/형태) 엑셀 로드
 @st.cache_data
 def load_store_info_excel():
-    excel_path = "가맹점 주소 형태.xlsx"
+    base_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
+    excel_path = os.path.join(base_dir, "가맹점 주소 형태.xlsx")
+    
+    if not os.path.exists(excel_path):
+        excel_path = "가맹점 주소 형태.xlsx"
+    
     if os.path.exists(excel_path):
         try:
             info_df = pd.read_excel(excel_path)
-            # 이름 정제 함수 (괄호 및 숫자 제거하여 매칭 확률 증가)
-            def clean_name(val):
-                return re.sub(r'\(\d+\)', '', str(val)).replace('렌즈미', '').strip()
-            
-            info_df['matching_key'] = info_df['가맹점명'].apply(clean_name)
+            info_df['matching_key'] = info_df['가맹점명'].apply(normalize_store_name)
             return info_df
         except Exception as e:
             st.error(f"가맹점 정보 파일 읽기 실패: {e}")
             return pd.DataFrame()
+            
     return pd.DataFrame()
 
 STORE_INFO_DF = load_store_info_excel()
 
-# 지점명 기반 가맹점 형태 & 주소 조회 함수
+# 📌 유사 지점명 유연 매칭 알고리즘 함수
 def get_store_metadata(store_name):
     if STORE_INFO_DF.empty:
-        return "정보 없음", "주소 정보 없음"
+        return "정보 없음", "가맹점 주소 형태.xlsx 파일 인식 불가"
     
-    clean_target = re.sub(r'\(\d+\)', '', str(store_name)).replace('렌즈미', '').strip()
+    clean_target = normalize_store_name(store_name)
+    
+    if not clean_target:
+        return "미지정", "주소 미등록"
+
+    # 1. 완전 일치 매칭
     matched = STORE_INFO_DF[STORE_INFO_DF['matching_key'] == clean_target]
     
+    # 2. 양방향 부분 매칭 (예: '일산중앙' <-> '일산중앙점', '석계' <-> '석계역')
     if matched.empty:
-        # 부분 일치 확인
-        matched = STORE_INFO_DF[STORE_INFO_DF['matching_key'].str.contains(clean_target, na=False)]
+        matched = STORE_INFO_DF[
+            STORE_INFO_DF['matching_key'].apply(lambda x: (clean_target in x or x in clean_target) if x else False)
+        ]
+        
+    # 3. 글자 수 기반 유사도 매칭 (두 글자 이상 겹치는 경우)
+    if matched.empty and len(clean_target) >= 2:
+        matched = STORE_INFO_DF[
+            STORE_INFO_DF['matching_key'].apply(lambda x: (clean_target[:2] in x or x[:2] in clean_target) if x else False)
+        ]
     
     if not matched.empty:
         s_type = matched.iloc[0]['가맹점 형태']
         s_addr = matched.iloc[0]['주소']
         return s_type, s_addr
-    return "미지정", "주소 미등록"
+        
+    return "미지정", f"주소 미등록 ({clean_target})"
 
 # 🧠 상권 분석 컨설팅 멘트 자동 생성 함수
 def generate_location_consulting(store_name, store_type, address):
@@ -122,7 +145,6 @@ def generate_location_consulting(store_name, store_type, address):
     advice = []
     advice.append(f"📍 **[상권 특징 분석]** 해당 지점은 **'{location_type}'** 환경에 위치하며, 형태는 **'{store_type}'** 매장입니다.")
     
-    # 상권 및 형태별 전략 멘트
     if "지하상가" in location_type or "초역세권" in location_type:
         advice.append("💡 **[매출 증대 전략]** 유동 인구가 많고 즉흥 구매율이 높은 특성이 있습니다. **트렌디한 PB/컬러렌즈 픽업 매대**를 입구 전면에 배치하고 원데이/행사 렌즈 입간판 홍보를 적극 활용하세요.")
     elif "대학가" in location_type:
