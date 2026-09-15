@@ -48,31 +48,53 @@ CATEGORY_COLORS = {
     '근시용': '#3b82f6', '난시용': '#ef4444', '해당없음': '#94a3b8'
 }
 
+# 🔥 3단계 이중 안전장치를 탑재한 열(Column) 추출 함수
+def get_safe_column(df, possible_names, fallback_idx=None):
+    for name in possible_names:
+        if name in df.columns:
+            return df[name]
+    if fallback_idx is not None and fallback_idx < len(df.columns):
+        return df.iloc[:, fallback_idx]
+    return pd.Series([''] * len(df))
+
 # 📌 가맹점 주소 데이터 로드 함수 (캐시 적용 및 에러 핸들링 강화)
 @st.cache_data
 def load_store_info():
-    if not os.path.exists("가맹점 주소 형태_2.xlsx"):
-        return None  # 파일이 없으면 명시적으로 None 반환
+    file_name = "가맹점 주소 형태_3.xlsx"
+    if not os.path.exists(file_name):
+        return None  
     
     try:
-        df_list = pd.read_excel("가맹점 주소 형태_2.xlsx", sheet_name=0)
+        df_list = pd.read_excel(file_name, sheet_name=0)
+        # 엑셀 열 이름의 띄어쓰기를 전부 없애서 오류 방지 ("가맹점 형태" -> "가맹점형태")
+        df_list.columns = df_list.columns.astype(str).str.replace(' ', '').str.strip()
+        
         store_map = {}
         for _, row in df_list.iterrows():
-            addr = str(row['주소']).strip() if '주소' in row and pd.notna(row['주소']) else "주소 정보 없음"
-            store_type = str(row['가맹점 형태']).strip() if '가맹점 형태' in row and pd.notna(row['가맹점 형태']) else "형태 미상"
-            
+            # 1. 주소 및 형태 가져오기
+            addr = "주소 정보 없음"
+            if '주소' in df_list.columns and pd.notna(row['주소']):
+                addr = str(row['주소']).strip()
+                
+            store_type = "형태 미상"
+            if '가맹점형태' in df_list.columns and pd.notna(row['가맹점형태']):
+                store_type = str(row['가맹점형태']).strip()
+            elif '형태' in df_list.columns and pd.notna(row['형태']):
+                store_type = str(row['형태']).strip()
+                
             store_info = (addr, store_type)
             
-            if '가맹점명' in row and pd.notna(row['가맹점명']):
+            # 2. 가맹점명 변형 저장 (검색 확률 상승)
+            if '가맹점명' in df_list.columns and pd.notna(row['가맹점명']):
                 original_name = str(row['가맹점명']).strip()
                 store_map[original_name] = store_info
                 
-                # 괄호 제거된 이름 저장
+                # "(67)" 등 괄호 안의 글자 제거
                 clean_name = re.sub(r'\([^)]*\)', '', original_name).strip()
                 if clean_name: store_map[clean_name] = store_info
                 
-                # '렌즈미/글라스미' 수식어가 빠진 이름 저장
-                short_name = clean_name.replace('렌즈미', '').replace('글라스미', '').strip()
+                # "렌즈미", "글라스미", "(주)" 글자 제거
+                short_name = clean_name.replace('렌즈미', '').replace('글라스미', '').replace('(주)', '').strip()
                 if short_name: store_map[short_name] = store_info
                 
         return store_map
@@ -81,20 +103,24 @@ def load_store_info():
 
 store_map = load_store_info()
 
-# 파일 누락 시 강력한 경고 알림
 if store_map is None:
-    st.error("🚨 **'가맹점 주소 형태_2.xlsx' 파일을 찾을 수 없거나 읽는 데 실패했습니다.** 파이썬 실행 경로에 파일이 있는지 확인해주세요!")
+    st.error("🚨 **'가맹점 주소 형태_3.xlsx' 파일을 찾을 수 없거나 읽는 데 실패했습니다.** 파일명을 확인해주세요!")
     store_map = {}
 
 def get_store_details(store_name):
     address = "주소 정보 없음"
     store_type = "형태 미상"
-    search_target = str(store_name).replace(" ", "") # 띄어쓰기 무시를 위해 공백 제거
     
-    # 1. 띄어쓰기를 모두 없앤 상태로 강력하게 비교
+    if not store_name:
+        return address, store_type, ""
+        
+    search_target = str(store_name).replace(" ", "").replace("(주)", "")
+    
+    # 1. 매장명 텍스트 매칭
     for k, v in store_map.items():
         key_nospace = k.replace(" ", "")
-        if search_target in key_nospace or key_nospace in search_target:
+        # 핵심 단어가 2글자 이상 포함되어 있으면 매칭
+        if len(key_nospace) >= 2 and (search_target in key_nospace or key_nospace in search_target):
             address, store_type = v
             break
             
@@ -115,15 +141,6 @@ def get_store_details(store_name):
         
     return address, store_type, comment
 
-
-# 🔥 3단계 이중 안전장치를 탑재한 열(Column) 추출 함수
-def get_safe_column(df, possible_names, fallback_idx=None):
-    for name in possible_names:
-        if name in df.columns:
-            return df[name]
-    if fallback_idx is not None and fallback_idx < len(df.columns):
-        return df.iloc[:, fallback_idx]
-    return pd.Series([''] * len(df))
 
 # 3. 데이터 로드 및 맵핑 (직접 업로드 방식)
 @st.cache_data
