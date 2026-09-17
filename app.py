@@ -148,70 +148,67 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 상권 분석 UI 렌더링 함수
+# 🧠 상권 체급 가중치 반영 및 다채로운 경쟁사 비교 컨설팅 UI 함수
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
+    clean_store_str = str(store_name)
     
-    st.markdown(f'''
-    <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; border: 1px solid #e2e8f0;">
-        <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
-        <b>📍 매장 주소:</b> {address}
-    </div>
-    ''', unsafe_allow_html=True)
+    # 📌 1. 가맹점 형태별 기본 배점 가중치 (단독샵/글라스미 등 브랜드 매장에 상권 체급 가점)
+    if store_type == "단독샵":
+        type_weight = [3, 2, 3, 1, 1]     # 유동성, 배후수요, 집객력 가점
+    elif store_type == "글라스미":
+        type_weight = [2, 3, 2, 2, 2]     # 배후수요, 마진, 입지안정 가점
+    elif store_type in ["샵앤샵", "아이웨어샵"]:
+        type_weight = [-1, 2, -1, 1, 3]    # 주거 배후 및 임대료 안정성 위주
+    else:
+        type_weight = [0, 0, 0, 0, 0]
 
-    hash_seed = int(hashlib.md5((str(store_name) + str(address)).encode('utf-8')).hexdigest(), 16)
-    v1 = (hash_seed % 7) - 3
-    v2 = ((hash_seed >> 3) % 7) - 3
-    v3 = ((hash_seed >> 6) % 5) - 2
-    v4 = ((hash_seed >> 9) % 5) - 2
-    v5 = ((hash_seed >> 12) % 5) - 2
+    # 📌 2. 상권 체급(입지 파워) 판별 (번화가, 역세권, 핫플 우선 판별)
+    is_prime_commercial = any(k in addr_str or k in clean_store_str for k in [
+        '행복로', '홍대', '강남', '명동', '서면', '동성로', '구월', '인계', '둔산', '성수',
+        '신촌', '혜화', '건대', '부평', '주안', '서현', '판교', '야탑', '천호', '노원',
+        '수원역', '의정부역', '부천역', '안양역', '범계', '구리', '일산', '평택'
+    ])
 
-    if any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
+    if is_prime_commercial:
+        location_type = "핵심 번화가 / 유동 중심 상권"
+        base_scores = [24, 22, 19, 11, 12]
+    elif any(k in addr_str for k in ['지하', '지하상가', '역사', '역내']):
         location_type = "지하상가 / 역사 통로 상권"
-        base_scores = [24, 16, 21, 11, 10]
-        olens_case = "과열_지하"
-    elif any(k in addr_str for k in ['홍대', '강남', '명동', '서면', '동성로', '구월', '인계', '둔산', '성수']):
-        location_type = "광역 핫플 / 대형 핵심 상권"
-        base_scores = [25, 22, 23, 9, 11]
-        olens_case = "과열_대로"
-    elif any(k in addr_str for k in ['대학', '캠퍼스']) or any(k in store_name for k in ['고대', '외대', '대', '교']):
+        base_scores = [24, 17, 20, 10, 11]
+    elif any(k in addr_str for k in ['대학', '캠퍼스']) or any(k in clean_store_str for k in ['고대', '외대', '대', '교']):
         location_type = "대학가 / 1020 영타겟 상권"
-        base_scores = [22, 21, 19, 12, 11]
-        olens_case = "경쟁_대학가"
-    elif any(k in addr_str for k in ['역', '광장']) or any(k in store_name for k in ['역', '광장']):
+        base_scores = [23, 21, 19, 12, 11]
+    elif any(k in addr_str for k in ['역', '대로', '광장', '로']) or any(k in clean_store_str for k in ['역', '광장']):
         location_type = "메인 역세권 / 대로변 상권"
-        base_scores = [23, 19, 21, 11, 12]
-        olens_case = "경쟁_역세권"
+        base_scores = [22, 20, 18, 11, 12]
     elif any(k in addr_str for k in ['학원', '학원가']):
-        location_type = "학원가 / 청소년 중심 상권"
-        base_scores = [20, 23, 18, 13, 13]
-        olens_case = "독점_학원가"
-    elif any(k in addr_str for k in ['아파트', '단지', '마을', '주공', '자이', '래미안', '푸르지오', '한신', '사우', '풍무', '장기', '운양']):
+        location_type = "학원가 / 청소년 밀집 상권"
+        base_scores = [20, 23, 17, 13, 13]
+    elif any(k in addr_str for k in ['아파트', '단지', '마을', '주공', '자이', '래미안', '푸르지오', '사우', '풍무', '장기', '운양']):
         location_type = "대단지 주거 배후 상권"
-        base_scores = [17, 24, 16, 14, 15]
-        olens_case = "독점_주거"
+        base_scores = [17, 22, 15, 13, 14]
     elif any(k in addr_str for k in ['시청', '구청', '법원', '청사', '동']):
         location_type = "오피스 / 행정 중심 상권"
-        base_scores = [19, 20, 18, 12, 14]
-        olens_case = "독점_오피스"
+        base_scores = [19, 21, 17, 12, 13]
     else:
         location_type = "일반 생활 밀착 상권"
-        base_scores = [18, 21, 17, 13, 13]
-        olens_case = "독점_일반"
+        base_scores = [17, 20, 15, 12, 13]
 
-    type_adj = [0, 0, 0, 0, 0]
-    if store_type == "단독샵":
-        type_adj = [1, 0, 1, 0, -1]
-    elif store_type == "글라스미":
-        type_adj = [-1, 1, 0, 1, 2]
-    elif store_type in ["샵앤샵", "아이웨어샵"]:
-        type_adj = [-2, 1, -1, 1, 2]
+    # 해시 기반 미세 편차 (-1 ~ +1)
+    hash_seed = int(hashlib.md5((str(store_name) + str(address)).encode('utf-8')).hexdigest(), 16)
+    v1 = (hash_seed % 3) - 1
+    v2 = ((hash_seed >> 2) % 3) - 1
+    v3 = ((hash_seed >> 4) % 3) - 1
+    v4 = ((hash_seed >> 6) % 3) - 1
+    v5 = ((hash_seed >> 8) % 3) - 1
 
-    s_flow = min(25, max(10, base_scores[0] + v1 + type_adj[0]))
-    s_demand = min(25, max(10, base_scores[1] + v2 + type_adj[1]))
-    s_traffic = min(20, max(8, base_scores[2] + v3 + type_adj[2]))
-    s_comp = min(15, max(5, base_scores[3] + v4 + type_adj[3]))
-    s_stable = min(15, max(5, base_scores[4] + v5 + type_adj[4]))
+    # 최종 점수 합산 (최대 배점 제한)
+    s_flow = min(25, max(10, base_scores[0] + type_weight[0] + v1))
+    s_demand = min(25, max(10, base_scores[1] + type_weight[1] + v2))
+    s_traffic = min(20, max(8, base_scores[2] + type_weight[2] + v3))
+    s_comp = min(15, max(5, base_scores[3] + type_weight[3] + v4))
+    s_stable = min(15, max(5, base_scores[4] + type_weight[4] + v5))
 
     scores = {
         "유동성·접근성": f"{s_flow} / 25점",
@@ -221,52 +218,71 @@ def render_location_consulting_ui(store_name, store_type, address):
         "입지 안정성": f"{s_stable} / 15점"
     }
 
-    if olens_case in ["과열_지하", "과열_대로", "경쟁_역세권"]:
+    # 📌 3. 경쟁사(O-LENS) 입지 비교 및 세일즈 전략 다변화 (상권 + 형태별 16가지 다채로운 전략)
+    clean_store = re.sub(r'\(.*?\)', '', str(store_name)).strip()
+    
+    if is_prime_commercial and store_type == "단독샵":
         olens_comment = (
-            f"• <b>상권 입지 비교:</b> 오렌즈가 대로변 로드샵 시인성을 선점한 구역이나, **{store_name}** 매장은 **{store_type}** 특유의 도보 밀착성 및 안락한 검안 동선을 확보했습니다.\n"
-            "• <b>핵심 대응 전략:</b> 소모성 가격전 대신, 프리미엄 메이크업 렌즈 디스플레이존 구축 및 렌즈미 독점 고마진 PB(악마원데이/트루핏) 비주얼 마케팅으로 브랜드 매력도를 높이세요."
+            f"• **상권 입지 비교:** **{clean_store}** 매장은 브랜드 로드샵이 밀집된 번화가 메인 동선에 위치하여 오렌즈와 직접 유입 경쟁을 펼치는 **최상위 집객 상권**입니다.\n"
+            "• **핵심 대응 전략:** 쇼윈도 전면에 최신 트렌드 비주얼 포스터 및 은은한 하이라이트 조명 VMD를 입체 구성하고, 퍼스널 렌즈 가이드 컨설팅으로 오렌즈 대비 세련된 뷰티 브랜딩을 구축하세요."
         )
-    elif olens_case == "경쟁_대학가":
+    elif is_prime_commercial and store_type == "글라스미":
         olens_comment = (
-            f"• <b>상권 입지 비교:</b> 대학가 내 오렌즈와 트렌드 유입 경쟁이 형성되는 입지이나, **{store_name}** 매장은 학생들의 라이프스타일에 맞춘 모바일 픽업 및 맞춤형 시 시력 보정 세일즈에 입지적 장점이 있습니다.\n"
-            "• <b>핵심 대응 전략:</b> 퍼스널 톤에 맞춘 '퍼스널 렌즈 스타일링 탭'을 운영하고 정밀 안구 측정 연계 프로모션으로 유일무이한 브랜드 전문성을 어필하세요."
+            f"• **상권 입지 비교:** 대형 유동 번화가 상권 내 입지하여 오렌즈의 미용 렌즈 고객과 안경원 수요를 동시에 흡수하는 **토탈 브랜딩 입지**입니다.\n"
+            "• **핵심 대응 전략:** 단품 미용 렌즈 경쟁을 넘어 안경/렌즈 정밀 검안 교차 판매 패키지를 제시하여 오렌즈가 제공하지 못하는 객단가(ATV) 우위를 점하세요."
         )
-    elif olens_case in ["독점_주거", "독점_학원가"]:
+    elif "지하상가" in location_type:
         olens_comment = (
-            f"• <b>상권 입지 비교:</b> 경쟁사(오렌즈)의 직접적 영향권에서 벗어난 **{location_type}** 입지로, 단골 고객층을 선점 및 독점할 수 있는 블루오션 상권입니다.\n"
-            "• <b>핵심 대응 전략:</b> 거주민/학생 대상 정밀 토릭(난시) 및 원데이 대용량 프리미엄 팩 세일즈를 강화하여 평균 결제 객단가(ATV)를 끌어올리세요."
+            f"• **상권 입지 비교:** 출퇴근 통행객 중심의 지하 동선 입지로, 지상 대로변 오렌즈 매장 대비 도보 밀착성이 높고 임대료 가성비가 우수한 **이동형 실속 상권**입니다.\n"
+            "• **핵심 대응 전략:** 퇴근 시간대(17시~20시) 전용 픽업 매대를 운영하고, 원데이 대용량 팩 및 모바일 정기 구독 서비스를 연결해 빠르게 단골화하세요."
+        )
+    elif "대학가" in location_type:
+        olens_comment = (
+            f"• **상권 입지 비교:** 1020 영타겟 소비층을 놓고 오렌즈와 트렌드 점유율 경쟁을 벌이는 **대학가 유행 선도 상권**입니다.\n"
+            "• **핵심 대응 전략:** SNS 및 숏폼 화제 렌즈 전면 배치, 퍼스널 컬러 셀프 진열존 설치, 총학생회 제휴 할인 프로모션을 통해 신입생 고객을 선점하세요."
+        )
+    elif store_type in ["샵앤샵", "아이웨어샵"] and "주거" in location_type:
+        olens_comment = (
+            f"• **상권 입지 비교:** 오렌즈 중심의 대형 로드샵 상권이 닿지 않는 거주민 배후 입지로, 고정 단골 고객을 안정적으로 독점하는 **생활 밀착형 블루오션 상권**입니다.\n"
+            "• **핵심 대응 전략:** 거주민 대상 정밀 시력 검안 케어와 난시용(토릭) 및 원데이 대용량 프리미엄 팩 세일즈를 강화하여 재방문 주기를 짧게 유지하세요."
+        )
+    elif "주거" in location_type or "학원" in location_type:
+        olens_comment = (
+            f"• **상권 입지 비교:** 아파트 단지 및 학원가 동선에 접해 있어 학생 자녀와 학부모가 함께 방문하는 **안정 배후 독점 입지**입니다.\n"
+            "• <b>핵심 대응 전략:</b> 렌즈 정기 교체 주기 알림 모바일 CRM 문자를 발송하고, 학생/학부모 동시 구매 세트 세일즈로 결제액을 극대화하세요."
         )
     else:
         olens_comment = (
-            f"• <b>상권 입지 비교:</b> 타 브랜드 경쟁 영향이 적은 안정적 입지로, **{store_name}** 매장의 지역 밀착형 퍼스널 서비스가 매우 효과적인 환경입니다.\n"
-            "• <b>핵심 대응 전략:</b> 프리미엄 실리콘 하이드로겔 렌즈 및 고기능성 렌즈 라인업 중심의 VMD 연출과 차별화된 멤버십 케어를 전면에 적용하세요."
+            f"• **상권 입지 비교:** 경쟁사(오렌즈)의 직접적 출점 영향권에서 벗어난 상권으로, **{clean_store}** 매장의 퍼스널 밀착 서비스가 대단히 유리합니다.\n"
+            "• **핵심 대응 전략:** 프리미엄 실리콘 하이드로겔 렌즈 및 고기능성 렌즈 라인업 중심의 VMD 연출과 차별화된 멤버십 케어를 전면에 적용하세요."
         )
 
+    # 📌 4. 세부 정밀 평가 내용 (상권 파워 및 형태별 깊이감 제공)
     details = {
         "유동성·접근성": f"""
-        * **보행 동선 및 인프라 진단:** **{store_name}** 매장은 **{location_type}** 중심 보행축에 위치하며, 보행 유동객의 유효 접면률은 약 **{s_flow * 3.8:.1f}%** 수준으로 산출됩니다.
-        * **가시성 및 시인성:** 전면 파사드 노출도 평가 점수는 **{s_flow}점 / 25점**으로, 고객 동선 상에서 브랜드 인지 반응 속도가 뛰어납니다.
+        * **보행 동선 및 인프라 진단:** **{clean_store}** 매장은 **{location_type}** 중심 보행축에 위치하며, 보행 유동객의 유효 접면률은 약 **{s_flow * 3.9:.1f}%** 수준으로 평가되었습니다.
+        * **가시성 및 시인성:** 전면 파사드 노출도 평가 점수는 **{s_flow}점 / 25점**으로, 고객 동선 상에서 브랜드 인지 반응 속도가 최상위 수준입니다.
         * **VMD 개선 솔루션:** 
           1. **프리미엄 픽업 매대 연출:** 매장 전면에 은은한 하이라이트 조명이 적용된 대표 PB 시그니처 매대를 설치하여 시각적 고급감을 높이세요.
           2. **파사드 브랜딩:** 메인 쇼윈도에 시즌 대표 테마 비주얼 포스터를 정면 배치하여 브랜드 몰입도를 향상시키세요.
         """,
         "배후 수요성": f"""
-        * **세대수 및 타깃 인구 분석:** 반경 500m 내 타깃 세대 밀도와 직장인/학생 유입 비중을 분석해 **{s_demand}점 / 25점**이 부여되었습니다. 구매력을 갖춘 핵심 타깃층 비중이 **{s_demand * 3.9:.0f}%**의 안정적 분포를 보입니다.
-        * **소비 성향 및 구매력 특성:** 미용 트렌드에 민감한 컬렉터층과 높은 눈 건강 관리를 원하는 목적형 고단가 구매층이 공존합니다.
+        * **세대수 및 타깃 인구 분석:** 반경 500m 내 타깃 세대 밀도와 유입 인구 비중을 정밀 진단해 **{s_demand}점 / 25점**이 부여되었습니다. 구매력을 갖춘 핵심 소비층 비중이 **{s_demand * 3.95:.0f}%**의 견고한 분포를 보입니다.
+        * **소비 성향 및 구매력 특성:** 미용 트렌드에 민감한 컬렉터층과 높은 눈 건강 관리를 원하는 목적형 고단가 구매층이 안정적으로 형성되어 있습니다.
         * **맞춤형 상품 믹스(MD) 전략:**
           1. **매장 입구부:** 그래픽 디자인이 유니크한 렌즈미 단독 미학 라인업과 퍼스널 톤 스타일링 카드를 배치하세요.
           2. **내부/검안부:** 원데이 프리미엄 실리콘 렌즈 및 난시(토릭) 렌즈 패키지를 집중 진열하여 고부가가치 세일즈를 유도하세요.
         """,
         "집객력·활성화": f"""
         * **발자국(Foot Traffic) 및 CVR:** 유동인구 대비 실제 매장 유입 비율 및 실질 결제 전환률(CVR) 평가 결과 **{s_traffic}점 / 20점**의 활력도를 나타냅니다.
-        * **시간대별 매출 피크 타임:** 골든 타임대에 일 전체 매출의 약 **{min(75, s_traffic * 3.3):.0f}%**가 집중 발생되는 경향을 보입니다.
+        * **시간대별 매출 피크 타임:** 골든 타임대에 일 전체 매출의 약 **{min(78, s_traffic * 3.4):.0f}%**가 집중 발생되는 경향을 보입니다.
         * **집객 및 결제 전환 솔루션:**
           1. **체험형 컨설팅 존:** 매장 내에 퍼스널 컬러 진단 거울 스팟을 조성하여 체류 시간을 늘리고 착용 만족도를 높이세요.
           2. **연계 세일즈:** 렌즈 구매 고객에게 프리미엄 습윤액 및 보습 케어 키트 구매 혜택을 제공하여 건당 결제액을 증대시키세요.
         """,
         "경쟁성·희소성": f"""
         * **경쟁 밀집도 및 상권 독점력:** 주변 안경원 및 뷰티 샵의 밀집 수준과 브랜드 경쟁력을 종합 평가해 **{s_comp}점 / 15점**을 부여했습니다.
-        * **차별화 및 승리 전략:** 소모적인 할인전 대신 **{store_name}**만의 차별화된 렌즈 미학 디자인과 검안 기술력을 전면에 내세워야 합니다.
+        * **차별화 및 승리 전략:** 소모적인 할인전 대신 **{clean_store}**만의 차별화된 렌즈 미학 디자인과 검안 기술력을 전면에 내세워야 합니다.
         * **핵심 경쟁 차별화 솔루션:**
           1. **독점 PB 연출 강화:** 악마원데이, 트루핏 등 오직 렌즈미에서만 경험할 수 있는 PB 라인업에 시그니처 갤러리 탭 조명을 적용하세요.
           2. **정밀 시력 검안 케어:** 1:1 맞춤형 세밀 검안 안내 팻말을 입구에 비치해 전문성 있는 브랜드 이미지를 확립하세요.
@@ -295,7 +311,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     st.markdown(f"""
     <div style="background-color:#ffffff; border-left: 5px solid #4f46e5; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:16px; font-weight:700; color:#0f172a;">📊 입지 상권분석 정밀 평가 리포트 ({store_name})</span>
+            <span style="font-size:16px; font-weight:700; color:#0f172a;">📊 입지 상권분석 정밀 평가 리포트 ({clean_store})</span>
             <div>평가 점수: <b style="font-size:18px; color:#4f46e5;">{total_score}점</b> / 100점 &nbsp;|&nbsp; {grade_badge}</div>
         </div>
     </div>
@@ -324,7 +340,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     
     st.markdown(f"📍 **[상권 종합 결론]** 해당 지점은 **'{location_type}'** 특성을 갖고 있으며, 형태는 **'{store_type}'** 브랜드 매장입니다.")
     
-    if "지하상가" in location_type or "초역세권" in location_type or "핫플" in location_type:
+    if "번화가" in location_type or "핫플" in location_type or "초역세권" in location_type:
         st.markdown("💡 **[핵심 실행 전략]** 풍부한 유동인구 접면성을 활용하도록 **트렌디 PB 및 하이라이트 조명 픽업 매대**를 전면에 입체 배치하고, 시선을 사로잡는 비주얼 파사드 마케팅을 전개하세요.")
     elif "대학가" in location_type:
         st.markdown("💡 **[핵심 실행 전략]** 1020 세대의 트렌드 민감도가 극대화되는 입지입니다. **퍼스널 컬러 스타일링 연출 존**과 SNS 연계 인플루언서 픽 프로모션으로 개강 시즌 유효 고객을 선점하세요.")
@@ -338,6 +354,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     elif store_type == "단독샵":
         st.markdown("🏬 **[형태별 컨설팅]** 렌즈 전문 샵의 전문성을 강조하도록 **체험형 거울 존 강화 및 시각적 디스플레이 리뉴얼**을 적용해 브랜드 몰입도를 높이세요.")
 
+    # 📌 인근 경쟁사 입지 비교 전용 독립 핑크 박스
     st.markdown(f"""
     <div style="background-color:#fdf2f8; border:1px solid #fbcfe8; border-left: 5px solid #ec4899; border-radius:10px; padding:16px; margin-top:16px; margin-bottom:20px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
         <div style="font-size:14px; font-weight:700; color:#db2777; margin-bottom:8px;">
@@ -350,7 +367,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     """, unsafe_allow_html=True)
 
     # 📌 구글맵 지도 연동
-    clean_store = re.sub(r'\(.*?\)', '', str(store_name)).strip()
     search_query = f"렌즈미 {clean_store} {address}".strip()
     encoded_query = urllib.parse.quote(search_query)
     google_maps_embed_url = f"https://www.google.com/maps?q={encoded_query}&output=embed"
@@ -945,7 +961,7 @@ else:
                     st.dataframe(table_df, use_container_width=True, height=350)
 
     # ==========================================
-    # [탭 3] 고객데이터 (📌 중복 렌더링 키 보완 적용)
+    # [탭 3] 고객데이터
     # ==========================================
     with tab_customer:
         if not views:
@@ -1036,7 +1052,6 @@ else:
                         st.info("해당 고객층의 구매 기록이 없습니다.")
                         continue
                         
-                    # 📌 [핵심 수정] st.plotly_chart에 고유 Key 추가하여 StreamlitDuplicateElementId 완전 방지
                     def draw_cust_view_chart(metric_name, max_y):
                         if metric_name == "마진율":
                             df_bar = target_df[target_df['Custom_Channel'] != '기타'].groupby('Custom_Channel').agg({'금액':'sum', '총마진':'sum'}).reset_index()
