@@ -152,7 +152,6 @@ def get_store_metadata(store_name):
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     
-    # 📌 상단 가맹점 정보 카드
     st.markdown(f'''
     <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; border: 1px solid #e2e8f0;">
         <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
@@ -339,7 +338,6 @@ def render_location_consulting_ui(store_name, store_type, address):
     elif store_type == "단독샵":
         st.markdown("🏬 **[형태별 컨설팅]** 렌즈 전문 샵의 전문성을 강조하도록 **체험형 거울 존 강화 및 시각적 디스플레이 리뉴얼**을 적용해 브랜드 몰입도를 높이세요.")
 
-    # 📌 인근 경쟁사 입지 비교 전용 독립 핑크 박스
     st.markdown(f"""
     <div style="background-color:#fdf2f8; border:1px solid #fbcfe8; border-left: 5px solid #ec4899; border-radius:10px; padding:16px; margin-top:16px; margin-bottom:20px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
         <div style="font-size:14px; font-weight:700; color:#db2777; margin-bottom:8px;">
@@ -351,10 +349,9 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     """, unsafe_allow_html=True)
 
-    # 📌 [요청 반영] 1순위: '렌즈미 {지점명} {주소}' 매장 핀 타깃 검색 -> 실패 시 주소 검색
+    # 📌 구글맵 지도 연동
     clean_store = re.sub(r'\(.*?\)', '', str(store_name)).strip()
     search_query = f"렌즈미 {clean_store} {address}".strip()
-    
     encoded_query = urllib.parse.quote(search_query)
     google_maps_embed_url = f"https://www.google.com/maps?q={encoded_query}&output=embed"
 
@@ -825,7 +822,7 @@ else:
                             fig_bar.update_layout(yaxis=dict(range=[0, max_y], showgrid=True, gridcolor='#f1f5f9', nticks=8), xaxis_title="", yaxis_title="매출액(원)", margin=dict(l=10, r=10, t=25, b=10), showlegend=False, plot_bgcolor='white', paper_bgcolor='white')
 
                         st.markdown(f"<div style='margin-top:20px; font-weight:bold; color:#334155;'>📈 카테고리별 {metric_name} 추이</div>", unsafe_allow_html=True)
-                        st.plotly_chart(fig_bar, use_container_width=True)
+                        st.plotly_chart(fig_bar, use_container_width=True, key=f"chart_bar_{metric_name}_{view['store_name']}_{idx}")
 
                         if metric_name != "판매/주문 수량":
                             if len(selected_channels) >= 2: pie_target = 'Custom_Channel'
@@ -844,7 +841,7 @@ else:
                                 fig_pie = px.pie(pie_data, values=pie_y, names=pie_target, hole=0.5, color=pie_target, color_discrete_map=CATEGORY_COLORS)
                                 fig_pie.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#ffffff', width=2)), textfont=dict(size=15, color='#ffffff'))
                                 fig_pie.update_layout(margin=dict(l=10, r=10, t=10, b=10), showlegend=False, plot_bgcolor='white', paper_bgcolor='white')
-                                st.plotly_chart(fig_pie, use_container_width=True)
+                                st.plotly_chart(fig_pie, use_container_width=True, key=f"chart_pie_{metric_name}_{view['store_name']}_{idx}")
 
                     if show_sales: draw_view_chart("매출액", global_max_sales)
                     if show_qty: draw_view_chart("판매/주문 수량", global_max_qty)
@@ -948,7 +945,7 @@ else:
                     st.dataframe(table_df, use_container_width=True, height=350)
 
     # ==========================================
-    # [탭 3] 고객데이터
+    # [탭 3] 고객데이터 (📌 중복 렌더링 키 보완 적용)
     # ==========================================
     with tab_customer:
         if not views:
@@ -1039,6 +1036,7 @@ else:
                         st.info("해당 고객층의 구매 기록이 없습니다.")
                         continue
                         
+                    # 📌 [핵심 수정] st.plotly_chart에 고유 Key 추가하여 StreamlitDuplicateElementId 완전 방지
                     def draw_cust_view_chart(metric_name, max_y):
                         if metric_name == "마진율":
                             df_bar = target_df[target_df['Custom_Channel'] != '기타'].groupby('Custom_Channel').agg({'금액':'sum', '총마진':'sum'}).reset_index()
@@ -1054,7 +1052,7 @@ else:
                         fig_bar = px.bar(df_bar, x='Custom_Channel', y=y_col, text=y_col, color='Custom_Channel', color_discrete_map=CATEGORY_COLORS)
                         fig_bar.update_traces(texttemplate=text_fmt, textposition='outside', width=0.5, opacity=1.0, textfont=dict(size=14, color='#020617'))
                         fig_bar.update_layout(yaxis=dict(range=[0, max_y], showgrid=True, gridcolor='#f1f5f9', nticks=8), xaxis_title="", yaxis_title=y_title, margin=dict(l=10, r=10, t=25, b=10), showlegend=False, plot_bgcolor='white', paper_bgcolor='white')
-                        st.plotly_chart(fig_bar, use_container_width=True)
+                        st.plotly_chart(fig_bar, use_container_width=True, key=f"cust_bar_{metric_name}_{pv['title']}_{idx}")
 
                         if len(selected_channels) >= 2: pie_target = 'Custom_Channel'
                         elif len(selected_prices) >= 2: pie_target = 'Price_Type'
@@ -1072,7 +1070,7 @@ else:
                             fig_pie = px.pie(pie_data, values=pie_y, names=pie_target, hole=0.5, color=pie_target, color_discrete_map=CATEGORY_COLORS)
                             fig_pie.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#ffffff', width=2)), textfont=dict(size=15, color='#ffffff'))
                             fig_pie.update_layout(margin=dict(l=10, r=10, t=10, b=10), showlegend=False, plot_bgcolor='white', paper_bgcolor='white')
-                            st.plotly_chart(fig_pie, use_container_width=True)
+                            st.plotly_chart(fig_pie, use_container_width=True, key=f"cust_pie_{metric_name}_{pv['title']}_{idx}")
 
                     if show_cust_sales: draw_cust_view_chart("매출액", g_max_c_sales)
                     if show_cust_qty: draw_cust_view_chart("판매 수량", g_max_c_qty)
