@@ -148,7 +148,7 @@ def get_store_metadata(store_name):
         
     return "미지정", f"주소 미등록 ({clean_target})"
 
-# 🧠 상권 체급 가중치 반영 및 엄격한 형태별 점수 산정 UI 함수
+# 🧠 상권 체급 가중치 반영 및 다채로운 경쟁사 비교 컨설팅 UI 함수
 def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     clean_store_str = str(store_name)
@@ -161,13 +161,13 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     ''', unsafe_allow_html=True)
 
-    # 📌 1. 가맹점 형태별 솔직하고 엄격한 가중치 (단독샵만 추가 가점, 나머지 적나라하게 까다롭게 산정)
+    # 📌 1. 가맹점 형태별 솔직하고 엄격한 가중치 (단독샵만 추가 가점)
     if store_type == "단독샵":
-        type_weight = [4, 3, 3, 1, 0]      # 렌즈 전문 단독샵 가점 (유동성, 수요성, 집객력 우수)
+        type_weight = [4, 3, 3, 1, 0]      # 렌즈 전문 단독샵 가점
     elif store_type == "글라스미":
-        type_weight = [-2, 0, -2, -1, 1]   # 토탈 안경형 매장 (단독 렌즈 집객력 다소 차감)
+        type_weight = [-2, 0, -2, -1, 1]   # 토탈 안경형 매장
     elif store_type in ["샵앤샵", "아이웨어샵"]:
-        type_weight = [-4, -2, -4, -1, 2]  # 샵인샵 보조 입지 (유동/집객력 적나라하게 감점)
+        type_weight = [-4, -2, -4, -1, 2]  # 샵인샵 보조 입지 감점
     else:
         type_weight = [-1, -1, -1, 0, 0]
 
@@ -226,7 +226,7 @@ def render_location_consulting_ui(store_name, store_type, address):
         "입지 안정성": f"{s_stable} / 15점"
     }
 
-    # 📌 3. 경쟁사(O-LENS) 입지 비교 다채로운 세일즈 전략
+    # 📌 3. 경쟁사(O-LENS) 입지 비교 및 세일즈 전략 다변화
     clean_store = re.sub(r'\(.*?\)', '', str(store_name)).strip()
     
     if is_prime_commercial and store_type == "단독샵":
@@ -374,12 +374,12 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     """, unsafe_allow_html=True)
 
-    # 📌 구글맵 지도 연동
-    search_query = f"렌즈미 {clean_store} {address}".strip()
+    # 📌 [요청 반영] 구글맵 지도 연동 (렌즈미 해당 매장 + 인근 오렌즈 매장 동시 표기)
+    search_query = f"렌즈미 {clean_store} {address} 오렌즈".strip()
     encoded_query = urllib.parse.quote(search_query)
     google_maps_embed_url = f"https://www.google.com/maps?q={encoded_query}&output=embed"
 
-    st.markdown(f"<div style='font-size:14.5px; font-weight:700; color:#0f172a; margin-bottom:8px;'>🗺️ 매장 위치 정밀 입지 지도 (렌즈미 {clean_store})</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-size:14.5px; font-weight:700; color:#0f172a; margin-bottom:8px;'>🗺️ 매장 및 인근 경쟁사(오렌즈) 입지 지도 (렌즈미 {clean_store})</div>", unsafe_allow_html=True)
     st.markdown(f'''
     <div style="border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; height: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px;">
         <iframe 
@@ -641,7 +641,7 @@ else:
         if not (p1_years or p1_ints): v1_df = store_df.iloc[0:0] 
             
         if p2_years: v2_df = v2_df[v2_df['연도'].isin(p2_years)]
-        if p2_ints: v2_df = v2_df[v2_df['월'].isin(p2_ints)]
+        if p2_ints: v2_df = v2_df[v2_ints.isin(p2_ints)] if p2_ints else v2_df
         if not (p2_years or p2_ints): v2_df = store_df.iloc[0:0]
         
         t1_y = ",".join(p1_years) if p1_years else "연도 미선택"
