@@ -1,4 +1,4 @@
-import streamlit as st
+  import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
@@ -374,16 +374,12 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     """, unsafe_allow_html=True)
 
-    # 📌 [수정] 구글 지도 쿼리: 해당 상권(동/구/시)의 '오렌즈' 매장 핀을 정밀 추출하여 지도 상에 시각화
-    addr_parts = [p for p in str(address).split() if p not in ['경기도', '경상남도', '경상북도', '전라남도', '전라북도', '충청남도', '충청북도', '강원도', '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시']]
-    region_kw = " ".join(addr_parts[:2]) if len(addr_parts) >= 2 else str(address)
-    
-    # 상권 범위 내의 오렌즈 핀이 지도에 동시 표시되도록 정밀 쿼리 구성
-    search_query = f"오렌즈 {region_kw}".strip()
+    # 📌 [수정] 렌즈미 해당 지점을 빨간색 핀으로 명확히 표기
+    search_query = f"렌즈미 {clean_store} {address}".strip()
     encoded_query = urllib.parse.quote(search_query)
     google_maps_embed_url = f"https://www.google.com/maps?q={encoded_query}&output=embed"
 
-    st.markdown(f"<div style='font-size:14.5px; font-weight:700; color:#0f172a; margin-bottom:8px;'>🗺️ 상권 주변 인근 경쟁사(오렌즈) 입지 지도 ({region_kw})</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-size:14.5px; font-weight:700; color:#0f172a; margin-bottom:8px;'>🗺️ 매장 위치 정밀 입지 지도 (렌즈미 {clean_store})</div>", unsafe_allow_html=True)
     st.markdown(f'''
     <div style="border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; height: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px;">
         <iframe 
@@ -792,14 +788,6 @@ else:
                     total_receipts = v_df['전표번호'].nunique()
                     atv = (total_sales / total_receipts) if total_receipts > 0 else 0
                     avg_margin_rate = (lens_df['총마진'].sum() / lens_sales * 100) if lens_sales > 0 else 0
-                    
-                    # 📌 가맹점 형태 & 주소 카드 노출
-                    st.markdown(f'''
-                    <div style="background-color: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 13px;">
-                        <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{s_type}</span><br>
-                        <b>📍 매장 주소:</b> {s_addr}
-                    </div>
-                    ''', unsafe_allow_html=True)
                     
                     # 📌 KPI 카드
                     if compare_mode == "단일 매장 조회":
