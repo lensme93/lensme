@@ -374,17 +374,12 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     """, unsafe_allow_html=True)
 
-    # 📌 [개선] 구글 지도 인근 오렌즈 매장 핀 정밀 표기 쿼리 연동
-    # 행정구역(동/구/시) 추출하여 오렌즈 지점 동시 검색 쿼리 구성
-    addr_parts = str(address).split()
-    region_kw = " ".join(addr_parts[:3]) if len(addr_parts) >= 3 else str(address)
-    
-    # 오렌즈와 주변 안경/렌즈 매장이 동시에 지도 상에 표시되도록 쿼리 결합
-    search_query = f"오렌즈 {region_kw}".strip()
+    # 📌 [수정] 렌즈미 해당 지점을 빨간색 핀으로 명확히 표기
+    search_query = f"렌즈미 {clean_store} {address}".strip()
     encoded_query = urllib.parse.quote(search_query)
     google_maps_embed_url = f"https://www.google.com/maps?q={encoded_query}&output=embed"
 
-    st.markdown(f"<div style='font-size:14.5px; font-weight:700; color:#0f172a; margin-bottom:8px;'>🗺️ 상권 주변 인근 경쟁사(오렌즈) 입지 지도 ({region_kw})</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-size:14.5px; font-weight:700; color:#0f172a; margin-bottom:8px;'>🗺️ 매장 위치 정밀 입지 지도 (렌즈미 {clean_store})</div>", unsafe_allow_html=True)
     st.markdown(f'''
     <div style="border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; height: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px;">
         <iframe 
