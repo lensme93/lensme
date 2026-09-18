@@ -153,7 +153,7 @@ def render_location_consulting_ui(store_name, store_type, address):
     addr_str = str(address)
     clean_store_str = str(store_name)
     
-    # 📌 [원복] 상단 가맹점 형태 & 주소 카드 노출 (상권분석컨설팅 탭 상단 위치)
+    # 📌 상단 가맹점 형태 & 주소 카드 노출
     st.markdown(f'''
     <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px; border: 1px solid #e2e8f0;">
         <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{store_type}</span><br>
@@ -161,13 +161,13 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     ''', unsafe_allow_html=True)
 
-    # 📌 1. 가맹점 형태별 솔직하고 엄격한 가중치 (단독샵만 추가 가점)
+    # 📌 1. 가맹점 형태별 가중치 (단독샵만 추가 가점)
     if store_type == "단독샵":
-        type_weight = [4, 3, 3, 1, 0]      # 렌즈 전문 단독샵 가점
+        type_weight = [4, 3, 3, 1, 0]
     elif store_type == "글라스미":
-        type_weight = [-2, 0, -2, -1, 1]   # 토탈 안경형 매장
+        type_weight = [-2, 0, -2, -1, 1]
     elif store_type in ["샵앤샵", "아이웨어샵"]:
-        type_weight = [-4, -2, -4, -1, 2]  # 샵인샵 보조 입지 감점
+        type_weight = [-4, -2, -4, -1, 2]
     else:
         type_weight = [-1, -1, -1, 0, 0]
 
@@ -374,12 +374,17 @@ def render_location_consulting_ui(store_name, store_type, address):
     </div>
     """, unsafe_allow_html=True)
 
-    # 📌 [요청 반영] 구글맵 지도 연동 (렌즈미 해당 매장 + 인근 오렌즈 매장 동시 표기)
-    search_query = f"렌즈미 {clean_store} {address} 오렌즈".strip()
+    # 📌 [개선] 구글 지도 인근 오렌즈 매장 핀 정밀 표기 쿼리 연동
+    # 행정구역(동/구/시) 추출하여 오렌즈 지점 동시 검색 쿼리 구성
+    addr_parts = str(address).split()
+    region_kw = " ".join(addr_parts[:3]) if len(addr_parts) >= 3 else str(address)
+    
+    # 오렌즈와 주변 안경/렌즈 매장이 동시에 지도 상에 표시되도록 쿼리 결합
+    search_query = f"오렌즈 {region_kw}".strip()
     encoded_query = urllib.parse.quote(search_query)
     google_maps_embed_url = f"https://www.google.com/maps?q={encoded_query}&output=embed"
 
-    st.markdown(f"<div style='font-size:14.5px; font-weight:700; color:#0f172a; margin-bottom:8px;'>🗺️ 매장 및 인근 경쟁사(오렌즈) 입지 지도 (렌즈미 {clean_store})</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-size:14.5px; font-weight:700; color:#0f172a; margin-bottom:8px;'>🗺️ 상권 주변 인근 경쟁사(오렌즈) 입지 지도 ({region_kw})</div>", unsafe_allow_html=True)
     st.markdown(f'''
     <div style="border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1; height: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px;">
         <iframe 
@@ -641,7 +646,7 @@ else:
         if not (p1_years or p1_ints): v1_df = store_df.iloc[0:0] 
             
         if p2_years: v2_df = v2_df[v2_df['연도'].isin(p2_years)]
-        if p2_ints: v2_df = v2_df[v2_ints.isin(p2_ints)] if p2_ints else v2_df
+        if p2_ints: v2_df = v2_df[v2_df['월'].isin(p2_ints)]
         if not (p2_years or p2_ints): v2_df = store_df.iloc[0:0]
         
         t1_y = ",".join(p1_years) if p1_years else "연도 미선택"
@@ -788,14 +793,6 @@ else:
                     total_receipts = v_df['전표번호'].nunique()
                     atv = (total_sales / total_receipts) if total_receipts > 0 else 0
                     avg_margin_rate = (lens_df['총마진'].sum() / lens_sales * 100) if lens_sales > 0 else 0
-                    
-                    # 📌 가맹점 형태 & 주소 카드 노출
-                    st.markdown(f'''
-                    <div style="background-color: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 13px;">
-                        <b>🏢 가맹점 형태:</b> <span style="color:#4f46e5; font-weight:bold;">{s_type}</span><br>
-                        <b>📍 매장 주소:</b> {s_addr}
-                    </div>
-                    ''', unsafe_allow_html=True)
                     
                     # 📌 KPI 카드
                     if compare_mode == "단일 매장 조회":
